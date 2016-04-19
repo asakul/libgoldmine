@@ -1,0 +1,67 @@
+cmake_minimum_required(VERSION 3.0.0 FATAL_ERROR)
+
+project(goldmine)
+
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/3rdparty/cmake)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+set(WORKSPACE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+set (BOOST_ROOT ${CMAKE_PREFIX_PATH})
+set (Boost_USE_STATIC_LIBS ON)
+set (Boost_USE_MULTITHREADED ON)
+
+add_definitions(-DBOOST_THREAD_USE_LIB)
+
+if(WIN32)
+find_package(Boost COMPONENTS system thread_win32-mt REQUIRED)
+else(WIN32)
+find_package(Boost COMPONENTS system thread REQUIRED)
+endif(WIN32)
+
+if(WIN32)
+	set(PLATFORM_CXX_FLAGS -mwindows)
+endif(WIN32)
+
+find_package(Threads)
+
+find_package(ZMQ REQUIRED)
+
+SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++14 -mtune=generic ${PLATFORM_CXX_FLAGS} -fno-omit-frame-pointer")
+
+include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
+include_directories(${ZMQ_INCLUDE_DIRS})
+
+set(goldmine-sources
+		quotesource/quotesource.cpp
+	)
+	
+add_library(goldmine SHARED ${goldmine-sources})
+target_link_libraries(goldmine ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+
+include_directories(
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
+	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch
+	${CMAKE_CURRENT_BINARY_DIR}
+	)
+
+set(test-sources
+		tests/quotesource_test.cpp
+	)
+
+add_executable(libgoldmine-tests tests/tests.cpp
+	${test-sources}
+	${goldmine-sources})
+	
+target_compile_definitions(libgoldmine-tests PRIVATE)
+	
+target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+	
+set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
+set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
+	
+include(CodeCoverage)
+setup_target_for_coverage(libgoldmine-coverage libgoldming-tests coverage)
+
