@@ -6,16 +6,18 @@
 
 #include "quotesource/quotesource.h"
 
-#include "zmq.hpp"
+#include "zmqpp/zmqpp.hpp"
 
 using namespace goldmine;
 
 TEST_CASE("QuoteSource", "[quotesource]")
 {
-	zmq::context_t context;
+	zmqpp::context context;
 	QuoteSource source(context, "inproc://control");
 	source.start();
 
-	zmq::socket_t socket(context, zmq::socket_type::dealer);
+	zmqpp::socket socket(context, zmqpp::socket_type::dealer);
 	socket.connect("inproc://control");
+
+	source.stop();
 }

@@ -9,7 +9,7 @@
 namespace goldmine
 {
 
-QuoteSource::QuoteSource(zmq::context_t& ctx, const std::string& endpoint) : m_ctx(ctx),
+QuoteSource::QuoteSource(zmqpp::context& ctx, const std::string& endpoint) : m_ctx(ctx),
 	m_endpoint(endpoint), m_run(false)
 {
 }
@@ -53,7 +53,8 @@ void QuoteSource::eventLoop()
 {
 	m_run = true;
 
-	zmq::socket_t controlSocket(m_ctx, m_endpoint);
+	zmqpp::socket controlSocket(m_ctx, zmqpp::socket_type::router);
+	controlSocket.bind(m_endpoint);
 
 	while(m_run)
 	{

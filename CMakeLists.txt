@@ -25,7 +25,7 @@ endif(WIN32)
 
 find_package(Threads)
 
-find_package(ZMQ REQUIRED)
+set(ZMQ_LIBRARIES -lzmqpp -lzmq)
 
 SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++14 -mtune=generic ${PLATFORM_CXX_FLAGS} -fno-omit-frame-pointer")
 

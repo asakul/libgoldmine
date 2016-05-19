@@ -7,7 +7,7 @@
 
 #include "goldmine/data.h"
 
-#include "zmq.hpp"
+#include "zmqpp/zmqpp.hpp"
 
 #include <boost/thread.hpp>
 
@@ -34,7 +34,7 @@ public:
 public:
 	using Ptr = std::shared_ptr<QuoteSource>;
 
-	QuoteSource(zmq::context_t& ctx, const std::string& endpoint);
+	QuoteSource(zmqpp::context& ctx, const std::string& endpoint);
 	virtual ~QuoteSource();
 
 	void addReactor(const Reactor::Ptr& reactor);
@@ -50,8 +50,8 @@ private:
 	void eventLoop();
 
 private:
+	zmqpp::context& m_ctx;
 	std::string m_endpoint;
-	zmq::context_t& m_ctx;
 	boost::thread m_thread;
 	bool m_run;
 };
