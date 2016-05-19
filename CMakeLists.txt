@@ -8,8 +8,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-set (BOOST_ROOT ${CMAKE_PREFIX_PATH})
-set (Boost_USE_STATIC_LIBS ON)
+set (Boost_USE_STATIC_LIBS OFF)
 set (Boost_USE_MULTITHREADED ON)
 
 add_definitions(-DBOOST_THREAD_USE_LIB)
@@ -32,6 +31,8 @@ SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++14 -
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cppzmq)
 include_directories(${ZMQ_INCLUDE_DIRS})
 
 set(goldmine-sources

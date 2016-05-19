@@ -2,9 +2,20 @@
  * quotesource_test.cpp
  */
 
-#include "/home/denis/projects/gold/libgoldmine/quotesource/quotesource.h"
+#include "catch.hpp"
 
-namespace goldmine
+#include "quotesource/quotesource.h"
+
+#include "zmq.hpp"
+
+using namespace goldmine;
+
+TEST_CASE("QuoteSource", "[quotesource]")
 {
+	zmq::context_t context;
+	QuoteSource source(context, "inproc://control");
+	source.start();
 
-} /* namespace goldmine */
+	zmq::socket_t socket(context, zmq::socket_type::dealer);
+	socket.connect("inproc://control");
+}
