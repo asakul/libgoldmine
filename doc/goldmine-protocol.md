@@ -37,7 +37,7 @@ Control-сообщения для всех типов нод
 Ответ:
     {
         "node-type" : "quotesource",
-        "version" : 2
+        "protocol-version" : 2
     }
 
 ### Heartbeat request

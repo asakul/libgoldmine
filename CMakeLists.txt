@@ -14,9 +14,9 @@ set (Boost_USE_MULTITHREADED ON)
 add_definitions(-DBOOST_THREAD_USE_LIB)
 
 if(WIN32)
-find_package(Boost COMPONENTS system thread_win32-mt REQUIRED)
+find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-find_package(Boost COMPONENTS system thread REQUIRED)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED)
 endif(WIN32)
 
 if(WIN32)
@@ -32,13 +32,14 @@ SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++14 -
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cppzmq)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp)
 include_directories(${ZMQ_INCLUDE_DIRS})
 
 set(goldmine-sources
+		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
 		quotesource/quotesource.cpp
 	)
-	
+
 add_library(goldmine SHARED ${goldmine-sources})
 target_link_libraries(goldmine ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
 
@@ -55,14 +56,14 @@ set(test-sources
 add_executable(libgoldmine-tests tests/tests.cpp
 	${test-sources}
 	${goldmine-sources})
-	
+
 target_compile_definitions(libgoldmine-tests PRIVATE)
-	
+
 target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
-	
+
 set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
-	
+
 include(CodeCoverage)
 setup_target_for_coverage(libgoldmine-coverage libgoldming-tests coverage)
 

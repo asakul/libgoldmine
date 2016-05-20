@@ -8,19 +8,18 @@
 
 namespace goldmine
 {
-
 	enum class MessageType
 	{
 		Control = 0x01,
-		Stream = 0x02,
-		StreamCredit = 0x03
+		Data = 0x02,
+		Service = 0x03,
+		Event = 0x04
 	};
 
 	enum class PacketType
 	{
 		Tick = 0x01,
-		Summary = 0x02,
-		Event = 0x03
+		Summary = 0x02
 	};
 
 	enum class EventId
@@ -90,7 +89,7 @@ namespace goldmine
 		{
 			return !(*this < other);
 		}
-		
+
 		bool operator>(const decimal_fixed& other) const
 		{
 			return !(*this <= other);
