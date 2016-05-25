@@ -97,6 +97,44 @@ TEST_CASE("QuoteSource", "[quotesource]")
 
 	}
 
+	SECTION("Start stream request")
+	{
+		SECTION("Request ticks, without selectors")
+		{
+			Json::Value tickers(Json::arrayValue);
+			tickers.append("t:RIM6");
+			Json::Value root;
+			root["command"] = "start-stream";
+			root["tickers"] = tickers;
+			sendControlMessage(root, control);
+
+			auto sink = source.makeTickSink();
+			goldmine::Tick tick;
+			tick.timestamp = 12;
+			tick.useconds = 0;
+			tick.packet_type = (int)goldmine::PacketType::Tick;
+			tick.datatype = (int)goldmine::Datatype::Price;
+			tick.value = goldmine::decimal_fixed(42, 0);
+
+			sink->incomingTick("RIM6", tick);
+
+			message recvd;
+			bool receiveOk = control.receive(recvd);
+			REQUIRE(receiveOk);
+
+			REQUIRE(recvd.parts() == 5);
+			int messageType = recvd.get<uint32_t>(2);
+			REQUIRE(messageType == (int)goldmine::MessageType::Data);
+			std::string ticker = recvd.get<std::string>(3);
+			REQUIRE(ticker == "RIM6");
+
+			std::string rawTick = recvd.get<std::string>(4);
+			const goldmine::Tick* recvdTick = reinterpret_cast<const goldmine::Tick*>(rawTick.data());
+
+			REQUIRE(*recvdTick == tick);
+		}
+	}
+
 	SECTION("Invalid packet")
 	{
 		SECTION("Invalid message type")

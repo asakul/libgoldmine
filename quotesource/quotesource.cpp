@@ -10,6 +10,27 @@
 namespace goldmine
 {
 
+QuoteSource::Sink::Sink(zmqpp::context& ctx, const std::string& endpoint) : m_socket(ctx, zmqpp::socket_type::push)
+{
+	m_socket.connect(endpoint);
+}
+
+void QuoteSource::Sink::incomingBar(const goldmine::Summary& bar)
+{
+}
+
+void QuoteSource::Sink::incomingTick(const std::string& ticker, const goldmine::Tick& tick)
+{
+	const char* t = reinterpret_cast<const char*>(&tick);
+	std::string rawTick(t, t + sizeof(tick));
+	zmqpp::message msg;
+	msg.add(0, 0);
+	msg << (uint32_t) goldmine::MessageType::Data;
+	msg << ticker;
+	msg << rawTick;
+	m_socket.send(msg);
+}
+
 QuoteSource::QuoteSource(zmqpp::context& ctx, const std::string& endpoint) : m_ctx(ctx),
 	m_endpoint(endpoint), m_run(false)
 {
@@ -30,13 +51,9 @@ void QuoteSource::removeReactor(const Reactor::Ptr& reactor)
 {
 }
 
-
-void QuoteSource::incomingTick(const goldmine::Tick& tick)
+std::unique_ptr<QuoteSource::Sink> QuoteSource::makeTickSink()
 {
-}
-
-void QuoteSource::incomingBar(const goldmine::Summary& bar)
-{
+	return std::unique_ptr<QuoteSource::Sink>(new Sink(m_ctx, "inproc://quotesource-sink"));
 }
 
 void QuoteSource::start()
@@ -68,8 +85,12 @@ void QuoteSource::eventLoop()
 	zmqpp::socket controlSocket(m_ctx, zmqpp::socket_type::router);
 	controlSocket.bind(m_endpoint);
 
+	zmqpp::socket sinkSocket(m_ctx, zmqpp::socket_type::pull);
+	sinkSocket.bind("inproc://quotesource-sink");
+
 	zmqpp::poller poller;
 	poller.add(controlSocket);
+	poller.add(sinkSocket);
 
 	while(m_run)
 	{
@@ -82,6 +103,10 @@ void QuoteSource::eventLoop()
 				{
 					controlSocket.receive(recvd);
 					handleSocket(controlSocket, recvd);
+				}
+				if(poller.has_input(sinkSocket))
+				{
+					handleSinkSocket(controlSocket, sinkSocket);
 				}
 			}
 		}
@@ -143,7 +168,31 @@ void QuoteSource::handleControl(const std::string& peerId, zmqpp::socket& contro
 
 		control.send(response);
 	}
+	else if(root["command"] == "start-stream")
+	{
+		Client newClient;
+		newClient.peerId = peerId;
+		m_clients[peerId] = newClient;
+	}
 }
 
+void QuoteSource::handleSinkSocket(zmqpp::socket& control, zmqpp::socket& sink)
+{
+	for(const auto& clientPair: m_clients)
+	{
+		auto peerId = clientPair.first;
+		zmqpp::message tickMessage;
+		sink.receive(tickMessage);
+
+		zmqpp::message clientMessage;
+		clientMessage << peerId;
+		clientMessage.add(0, 0);
+		clientMessage << tickMessage.get<uint32_t>(2);
+		clientMessage << tickMessage.get<std::string>(3);
+		clientMessage << tickMessage.get<std::string>(4);
+
+		control.send(clientMessage);
+	}
+}
 
 } /* namespace goldmine */

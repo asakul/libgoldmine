@@ -35,6 +35,17 @@ public:
 		virtual void clientRequestedStream(const std::string& identity, const std::string& streamId) = 0;
 	};
 
+	class Sink
+	{
+	public:
+		Sink(zmqpp::context& ctx, const std::string& endpoint);
+		void incomingTick(const std::string& ticker, const goldmine::Tick& tick);
+		void incomingBar(const goldmine::Summary& bar);
+
+	private:
+		zmqpp::socket m_socket;
+	};
+
 public:
 	using Ptr = std::shared_ptr<QuoteSource>;
 
@@ -44,8 +55,7 @@ public:
 	void addReactor(const Reactor::Ptr& reactor);
 	void removeReactor(const Reactor::Ptr& reactor);
 
-	void incomingTick(const goldmine::Tick& tick);
-	void incomingBar(const goldmine::Summary& bar);
+	std::unique_ptr<Sink> makeTickSink();
 
 	void start();
 	void stop() noexcept;
@@ -55,6 +65,7 @@ private:
 
 	void handleSocket(zmqpp::socket& control, zmqpp::message& msg);
 	void handleControl(const std::string& peerId, zmqpp::socket& control, const Json::Value& root);
+	void handleSinkSocket(zmqpp::socket& control, zmqpp::socket& sink);
 
 private:
 	zmqpp::context& m_ctx;
@@ -63,6 +74,12 @@ private:
 	bool m_run;
 
 	std::vector<Reactor::Ptr> m_reactors;
+
+	struct Client
+	{
+		std::string peerId;
+	};
+	std::map<std::string, Client> m_clients;
 };
 
 } /* namespace goldmine */
