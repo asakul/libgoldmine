@@ -37,6 +37,10 @@ include_directories(${ZMQ_INCLUDE_DIRS})
 
 set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
+
+		io/iolinemanager.cpp
+		io/posix/io_socket.cpp
+
 		quotesource/quotesource.cpp
 	)
 
@@ -65,5 +69,23 @@ set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofi
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
 
 include(CodeCoverage)
-setup_target_for_coverage(libgoldmine-coverage libgoldming-tests coverage)
+setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests coverage)
+
+set(tests-integration-sources
+	tests-integration/unixsocket_test.cpp
+	)
+
+add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
+	${tests-integration-sources}
+	${goldmine-sources})
+
+target_compile_definitions(libgoldmine-tests PRIVATE)
+
+target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+
+set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
+set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
+
+include(CodeCoverage)
+setup_target_for_coverage(libgoldmine-integration-coverage libgoldmine-integration-tests coverage)
 
