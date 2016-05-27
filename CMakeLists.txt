@@ -39,6 +39,7 @@ set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
 
 		io/iolinemanager.cpp
+		io/message.cpp
 		io/posix/io_socket.cpp
 
 		quotesource/quotesource.cpp
@@ -54,6 +55,7 @@ include_directories(
 	)
 
 set(test-sources
+		tests/message_test.cpp
 		tests/quotesource_test.cpp
 	)
 
