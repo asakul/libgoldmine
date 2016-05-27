@@ -40,6 +40,9 @@ set(goldmine-sources
 
 		io/iolinemanager.cpp
 		io/message.cpp
+
+		io/common/inproc.cpp
+
 		io/posix/io_socket.cpp
 
 		quotesource/quotesource.cpp
@@ -55,6 +58,7 @@ include_directories(
 	)
 
 set(test-sources
+		tests/inproc_test.cpp
 		tests/message_test.cpp
 		tests/quotesource_test.cpp
 	)
