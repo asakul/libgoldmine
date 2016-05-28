@@ -15,6 +15,28 @@ namespace goldmine
 namespace io
 {
 
+class RingBuffer
+{
+public:
+	RingBuffer(size_t bufferSize);
+	~RingBuffer();
+
+	size_t read(void* buffer, size_t buflen);
+	size_t write(void* buffer, size_t buflen);
+
+	size_t readPointer() const { return m_rdptr; }
+	size_t writePointer() const { return m_wrptr; }
+
+	size_t availableReadSize() const;
+	size_t availableWriteSize() const;
+
+	size_t size() const { return m_data.size(); }
+private:
+	std::vector<char> m_data;
+	size_t m_wrptr;
+	size_t m_rdptr;
+};
+
 class DataQueue
 {
 public:
@@ -24,35 +46,54 @@ public:
 	size_t read(void* buffer, size_t buflen);
 	size_t write(void* buffer, size_t buflen);
 
-	size_t readPointer() const { return m_rdptr; }
-	size_t writePointer() const { return m_wrptr; }
+	size_t readPointer() const { return m_buffer.readPointer(); }
+	size_t writePointer() const { return m_buffer.writePointer(); }
+
+	size_t availableReadSize() const;
+	size_t availableWriteSize() const;
 
 private:
-	std::vector<char> m_data;
-	size_t m_wrptr;
-	size_t m_rdptr;
+	RingBuffer m_buffer;
 
 	std::mutex m_mutex;
-	std::condition_variable m_cond;
+	std::condition_variable m_readCondition;
+	std::condition_variable m_writeCondition;
 };
 
 class InprocLine : public IoLine
 {
 public:
-	InprocLine();
+	InprocLine(const std::shared_ptr<InprocLine>& other);
+	InprocLine(const std::string& address);
 	virtual ~InprocLine();
 
 	virtual ssize_t read(void* buffer, size_t buflen) override;
 	virtual ssize_t write(void* buffer, size_t buflen) override;
+
+	std::string address() const { return m_address; }
+
+	void waitForConnection();
+
+private:
+	std::string m_address;
+	std::mutex m_mutex;
+	std::condition_variable m_condition;
+
+	std::shared_ptr<DataQueue> m_in;
+	std::shared_ptr<DataQueue> m_out;
 };
 
 class InprocAcceptor : public IoAcceptor
 {
 public:
-	InprocAcceptor();
+	InprocAcceptor(const std::string& address);
 	virtual ~InprocAcceptor();
 
 	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout) override;
+
+	std::string address() const { return m_address; }
+private:
+	std::string m_address;
 };
 
 class InprocLineFactory : public IoLineFactory

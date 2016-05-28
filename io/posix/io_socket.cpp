@@ -172,6 +172,11 @@ TcpSocketAcceptor::TcpSocketAcceptor(const std::string& address) : m_address(add
 	if(m_socket < 0)
 		throw IoException(std::string("Unable to create socket: " + std::to_string(m_socket)));
 
+	int enable = 1;
+	if(setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0)
+		throw IoException(std::string("Unable to set socket option: " + std::to_string(m_socket)));
+
+
 	auto semicolon = m_address.find(':');
 	auto host = m_address.substr(0, semicolon);
 	auto port = atoi(m_address.substr(semicolon + 1).c_str());

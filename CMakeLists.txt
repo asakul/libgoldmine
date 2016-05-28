@@ -78,6 +78,7 @@ include(CodeCoverage)
 setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests coverage)
 
 set(tests-integration-sources
+	tests-integration/inproc_integration_test.cpp
 	tests-integration/unixsocket_test.cpp
 	)
 
