@@ -2,6 +2,7 @@
 #include "message.h"
 
 #include <cstring>
+#include <stdexcept>
 
 namespace goldmine
 {
@@ -22,6 +23,29 @@ Message::Message()
 
 Message::~Message()
 {
+}
+
+Message Message::readMessage(const void* buffer, size_t bufferLength)
+{
+	char* start = (char*)buffer;
+	char* current = (char*)buffer;
+	size_t frames = *((uint32_t*)current);
+	current += 4;
+
+	Message msg;
+
+	for(size_t i = 0; i < frames; i++)
+	{
+		size_t currentFrameLength = *((uint32_t*)current);
+		current += 4;
+		if(current + currentFrameLength - start > (ssize_t)bufferLength)
+			throw std::length_error("Unable to construct Message: end of buffer");
+
+		msg.addFrame(Frame(current, currentFrameLength));
+		current += currentFrameLength;
+	}
+
+	return msg;
 }
 
 void Message::addFrame(const Frame& frame)

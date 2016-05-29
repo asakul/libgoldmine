@@ -32,7 +32,13 @@ class Message
 {
 public:
 	Message();
+	Message(const Message& other) = default;
+	Message(Message&& other) = default;
+	Message& operator=(const Message& other) = default;
+	Message& operator=(Message&& other) = default;
 	virtual ~Message();
+
+	static Message readMessage(const void* buffer, size_t bufferLength);
 
 	void addFrame(const Frame& frame);
 	void addFrame(Frame&& frame);
