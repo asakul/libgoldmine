@@ -26,6 +26,11 @@ public:
 	size_t size() const { return m_data.size(); }
 	const void* data() const { return m_data.data(); }
 
+	inline bool operator==(const Frame& other) const
+	{
+		return m_data == other.m_data;
+	}
+
 private:
 	std::vector<char> m_data;
 };

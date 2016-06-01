@@ -28,7 +28,7 @@ TEST_CASE("InprocLine", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(1000));
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
 				server->read(recv_buf.data(), recv_buf.size());
 			});
 
@@ -58,7 +58,7 @@ TEST_CASE("InprocLine", "[io]")
 			});
 
 		std::thread serverThread([&](){
-				auto server = acceptor->waitConnection(std::chrono::milliseconds(1000));
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
 				for(size_t i = 0; i < totalChunks; i++)
 				{
 					auto start = recv_buf.data() + chunkSize * i;
