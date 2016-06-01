@@ -57,6 +57,7 @@ public:
 
 	size_t size() const { return m_frames.size(); }
 	Frame& frame(size_t index) { return m_frames[index]; }
+	const Frame& frame(size_t index) const { return m_frames[index]; }
 
 	size_t messageSize() const;
 	void writeMessage(void* buffer) const;
@@ -68,13 +69,13 @@ public:
 		return *this;
 	}
 
-	void get(uint8_t& value, size_t frameNumber);
-	void get(uint16_t& value, size_t frameNumber);
-	void get(uint32_t& value, size_t frameNumber);
-	void get(std::string& value, size_t frameNumber);
+	void get(uint8_t& value, size_t frameNumber) const;
+	void get(uint16_t& value, size_t frameNumber) const;
+	void get(uint32_t& value, size_t frameNumber) const;
+	void get(std::string& value, size_t frameNumber) const;
 
 	template <typename T>
-	T get(size_t frameNumber)
+	T get(size_t frameNumber) const
 	{
 		T t;
 		get(t, frameNumber);
@@ -90,6 +91,7 @@ class MessageProtocol
 {
 public:
 	MessageProtocol(const std::shared_ptr<IoLine>& line);
+	MessageProtocol(MessageProtocol&& other);
 	virtual ~MessageProtocol();
 
 	void readMessage(Message& m);

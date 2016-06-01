@@ -135,6 +135,19 @@ namespace io
 			m_readCondition.wait(lock, [&]() { return m_buffer.availableReadSize() >= buflen; });
 		return m_buffer.read(buffer, buflen);
 	}
+	
+	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		m_writeCondition.notify_all();
+		if(m_buffer.availableReadSize() == 0)
+		{
+			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() >= buflen; });
+			if(!rc)
+				return 0;
+		}
+		return m_buffer.read(buffer, buflen);
+	}
 
 	size_t DataQueue::write(void* buffer, size_t buflen)
 	{
@@ -185,12 +198,29 @@ namespace io
 
 	ssize_t InprocLine::read(void* buffer, size_t buflen)
 	{
-		return m_in->read(buffer, buflen);
+		if(m_readTimeout > 0)
+			return m_in->readWithTimeout(buffer, buflen, std::chrono::milliseconds(m_readTimeout));
+		else
+			return m_in->read(buffer, buflen);
 	}
 
 	ssize_t InprocLine::write(void* buffer, size_t buflen)
 	{
 		return m_out->write(buffer, buflen);
+	}
+
+	void InprocLine::setOption(LineOption option, void* data)
+	{
+		switch(option)
+		{
+			case LineOption::ReceiveTimeout:
+				m_readTimeout = *reinterpret_cast<uint32_t*>(data);
+				break;
+			case LineOption::SendTimeout:
+				throw UnsupportedOption("");
+			default:
+				throw UnsupportedOption("");
+		}
 	}
 
 	void InprocLine::waitForConnection()

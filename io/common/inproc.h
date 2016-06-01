@@ -46,6 +46,8 @@ public:
 	size_t read(void* buffer, size_t buflen);
 	size_t write(void* buffer, size_t buflen);
 
+	size_t readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout);
+
 	size_t readPointer() const { return m_buffer.readPointer(); }
 	size_t writePointer() const { return m_buffer.writePointer(); }
 
@@ -69,6 +71,7 @@ public:
 
 	virtual ssize_t read(void* buffer, size_t buflen) override;
 	virtual ssize_t write(void* buffer, size_t buflen) override;
+	virtual void setOption(LineOption option, void* data);
 
 	std::string address() const { return m_address; }
 
@@ -81,6 +84,8 @@ private:
 
 	std::shared_ptr<DataQueue> m_in;
 	std::shared_ptr<DataQueue> m_out;
+
+	int m_readTimeout;
 };
 
 class InprocAcceptor : public IoAcceptor
@@ -92,6 +97,8 @@ public:
 	virtual std::shared_ptr<IoLine> waitConnection(const std::chrono::milliseconds& timeout) override;
 
 	std::string address() const { return m_address; }
+
+
 private:
 	std::string m_address;
 };

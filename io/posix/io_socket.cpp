@@ -59,6 +59,11 @@ ssize_t UnixSocket::write(void* buffer, size_t buflen)
 	return rc;
 }
 
+void UnixSocket::setOption(LineOption option, void* data)
+{
+	throw UnsupportedOption("");
+}
+
 UnixSocketAcceptor::UnixSocketAcceptor(const std::string& address) : m_address(address)
 {
 	m_socket = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -164,6 +169,11 @@ ssize_t TcpSocket::write(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::write(m_socket, buffer, buflen);
 	return rc;
+}
+
+void TcpSocket::setOption(LineOption option, void* data)
+{
+	throw UnsupportedOption("");
 }
 
 TcpSocketAcceptor::TcpSocketAcceptor(const std::string& address) : m_address(address)

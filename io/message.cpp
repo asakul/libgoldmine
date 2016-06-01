@@ -111,25 +111,25 @@ void Message::writeMessage(void* buffer) const
 	}
 }
 
-void Message::get(uint8_t& value, size_t frameNumber)
+void Message::get(uint8_t& value, size_t frameNumber) const
 {
 	value = *reinterpret_cast<const uint8_t*>(frame(frameNumber).data());
 }
 
-void Message::get(uint16_t& value, size_t frameNumber)
+void Message::get(uint16_t& value, size_t frameNumber) const
 {
 	value = *reinterpret_cast<const uint16_t*>(frame(frameNumber).data());
 }
 
-void Message::get(uint32_t& value, size_t frameNumber)
+void Message::get(uint32_t& value, size_t frameNumber) const
 {
 	value = *reinterpret_cast<const uint32_t*>(frame(frameNumber).data());
 }
 
-void Message::get(std::string& value, size_t frameNumber)
+void Message::get(std::string& value, size_t frameNumber) const
 {
-	auto frame = frame(frameNumber);
-	value.assign(frame.data(), reinterpret_cast<char*>(frame.data()) + frame.size());
+	auto f = frame(frameNumber);
+	value.assign((const char*)f.data(), f.size());
 }
 
 struct MessageProtocol::Impl
@@ -146,6 +146,9 @@ MessageProtocol::~MessageProtocol()
 {
 }
 
+MessageProtocol::MessageProtocol(MessageProtocol&& other) : m_impl(std::move(other.m_impl))
+{
+}
 
 void MessageProtocol::readMessage(Message& m)
 {
