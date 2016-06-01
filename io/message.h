@@ -31,6 +31,11 @@ public:
 		return m_data == other.m_data;
 	}
 
+	static Frame fromValue(uint8_t value);
+	static Frame fromValue(uint16_t value);
+	static Frame fromValue(uint32_t value);
+	static Frame fromValue(const std::string& value);
+
 private:
 	std::vector<char> m_data;
 };
@@ -55,6 +60,26 @@ public:
 
 	size_t messageSize() const;
 	void writeMessage(void* buffer) const;
+
+	template <typename T>
+	Message& operator<<(const T& value)
+	{
+		addFrame(Frame::fromValue(value));
+		return *this;
+	}
+
+	void get(uint8_t& value, size_t frameNumber);
+	void get(uint16_t& value, size_t frameNumber);
+	void get(uint32_t& value, size_t frameNumber);
+	void get(std::string& value, size_t frameNumber);
+
+	template <typename T>
+	T get(size_t frameNumber)
+	{
+		T t;
+		get(t, frameNumber);
+		return t;
+	}
 
 private:
 	std::vector<Frame> m_frames;

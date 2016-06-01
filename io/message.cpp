@@ -24,6 +24,26 @@ Frame::Frame(std::vector<char>&& data) : m_data(data)
 {
 }
 
+Frame Frame::fromValue(uint8_t value)
+{
+	return Frame(reinterpret_cast<uint8_t*>(&value), sizeof(value));
+}
+
+Frame Frame::fromValue(uint16_t value)
+{
+	return Frame(reinterpret_cast<uint16_t*>(&value), sizeof(value));
+}
+
+Frame Frame::fromValue(uint32_t value)
+{
+	return Frame(reinterpret_cast<uint32_t*>(&value), sizeof(value));
+}
+
+Frame Frame::fromValue(const std::string& value)
+{
+	return Frame(value.data(), value.size());
+}
+
 Message::Message()
 {
 }
@@ -89,6 +109,27 @@ void Message::writeMessage(void* buffer) const
 		memcpy(b, frame.data(), frame.size());
 		b += frame.size();
 	}
+}
+
+void Message::get(uint8_t& value, size_t frameNumber)
+{
+	value = *reinterpret_cast<const uint8_t*>(frame(frameNumber).data());
+}
+
+void Message::get(uint16_t& value, size_t frameNumber)
+{
+	value = *reinterpret_cast<const uint16_t*>(frame(frameNumber).data());
+}
+
+void Message::get(uint32_t& value, size_t frameNumber)
+{
+	value = *reinterpret_cast<const uint32_t*>(frame(frameNumber).data());
+}
+
+void Message::get(std::string& value, size_t frameNumber)
+{
+	auto frame = frame(frameNumber);
+	value.assign(frame.data(), reinterpret_cast<char*>(frame.data()) + frame.size());
 }
 
 struct MessageProtocol::Impl
