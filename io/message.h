@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace goldmine
 {
@@ -16,6 +17,7 @@ class Frame
 public:
 	Frame();
 	Frame(const void* data, size_t len);
+	Frame(std::vector<char>&& data);
 	Frame(const Frame& other) = default;
 	Frame(Frame&& other) = default;
 	Frame& operator=(const Frame& other) = default;
@@ -47,10 +49,27 @@ public:
 	Frame& frame(size_t index) { return m_frames[index]; }
 
 	size_t messageSize() const;
-	void writeMessage(void* buffer);
+	void writeMessage(void* buffer) const;
 
 private:
 	std::vector<Frame> m_frames;
+};
+
+class IoLine;
+class MessageProtocol
+{
+public:
+	MessageProtocol(const std::shared_ptr<IoLine>& line);
+	virtual ~MessageProtocol();
+
+	void readMessage(Message& m);
+	void sendMessage(const Message& m);
+
+	IoLine* getLine() const;
+
+private:
+	struct Impl;
+	std::unique_ptr<Impl> m_impl;
 };
 
 }

@@ -18,6 +18,12 @@ public:
 	IoException(const std::string& errmsg) : std::runtime_error(errmsg) {}
 };
 
+class TimeoutException : public IoException
+{
+public:
+	TimeoutException(const std::string& errmsg) : IoException(errmsg) {}
+};
+
 class IoLine
 {
 public:
