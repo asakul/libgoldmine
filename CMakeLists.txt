@@ -74,10 +74,9 @@ target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_I
 set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
 
-include(CodeCoverage)
-setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests coverage)
-
 set(tests-integration-sources
+	tests-integration/inproc_integration_test.cpp
+	tests-integration/messageprotocol_test.cpp
 	tests-integration/unixsocket_test.cpp
 	)
 
@@ -93,5 +92,5 @@ set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O
 set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
 
 include(CodeCoverage)
-setup_target_for_coverage(libgoldmine-integration-coverage libgoldmine-integration-tests coverage)
+setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests libgoldmine-integration-tests coverage)
 

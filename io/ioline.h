@@ -18,6 +18,24 @@ public:
 	IoException(const std::string& errmsg) : std::runtime_error(errmsg) {}
 };
 
+class TimeoutException : public IoException
+{
+public:
+	TimeoutException(const std::string& errmsg) : IoException(errmsg) {}
+};
+
+class UnsupportedOption : public IoException
+{
+public:
+	UnsupportedOption(const std::string& errmsg) : IoException(errmsg) {}
+};
+
+enum class LineOption
+{
+	ReceiveTimeout = 1,
+	SendTimeout = 2
+};
+
 class IoLine
 {
 public:
@@ -25,6 +43,8 @@ public:
 
 	virtual ssize_t read(void* buffer, size_t buflen) = 0;
 	virtual ssize_t write(void* buffer, size_t buflen) = 0;
+
+	virtual void setOption(LineOption option, void* data) = 0;
 };
 
 inline IoLine::~IoLine() {}

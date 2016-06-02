@@ -4,6 +4,7 @@
 #include "io/iolinemanager.h"
 #include "io/posix/io_socket.h"
 
+#include <numeric>
 #include <thread>
 #include <unistd.h>
 

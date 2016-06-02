@@ -2,8 +2,11 @@
 #include "catch.hpp"
 
 #include "io/common/inproc.h"
+#include "io/iolinemanager.h"
 
+#include <numeric>
 #include <cstring>
+#include <memory>
 
 using namespace goldmine::io;
 
@@ -23,25 +26,6 @@ TEST_CASE("DataQueue", "[io]")
 
 		REQUIRE(done == 256);
 		REQUIRE(std::equal(buf.begin(), buf.end(), recv_buf.begin()));
-	}
-
-	SECTION("If write would overflow, nothing is written. Rdptr is zero")
-	{
-		std::array<char, 256> buf;
-		std::array<char, 512> recv_buf {};
-		std::iota(buf.begin(), buf.end(), 0);
-
-		size_t done;
-		done = queue.write(buf.data(), buf.size());
-		REQUIRE(done == 256);
-		done = queue.write(buf.data(), buf.size());
-		REQUIRE(done == 256);
-		done = queue.write(buf.data(), buf.size());
-		REQUIRE(done == 256);
-
-		// Would overflow, because we didn't read anything
-		done = queue.write(buf.data(), buf.size());
-		REQUIRE(done == 0);
 	}
 
 	SECTION("Write: rollover")
@@ -124,4 +108,3 @@ TEST_CASE("DataQueue", "[io]")
 		}
 	}
 }
-

@@ -4,115 +4,269 @@
 
 #include "quotesource.h"
 
+#include "io/iolinemanager.h"
 
 #include <functional>
+#include <unordered_set>
 
 namespace goldmine
 {
+using namespace io;
 
-QuoteSource::Sink::Sink(zmqpp::context& ctx, const std::string& endpoint) : m_socket(ctx, zmqpp::socket_type::push)
+class Client
 {
-	m_socket.connect(endpoint);
+public:
+	Client(const std::shared_ptr<IoLine>& line, QuoteSource::Impl* impl) :
+		m_quotesource(impl),
+		m_proto(line),
+		m_run(false)
+	{
+	}
+
+	Client(Client&& other) : m_proto(std::move(other.m_proto)),
+		m_clientThread(std::move(other.m_clientThread)),
+		m_run(other.m_run)
+	{
+	}
+
+	virtual ~Client()
+	{
+		stop();
+	}
+
+	void start()
+	{
+		m_clientThread = boost::thread(std::bind(&Client::eventLoop, this));
+	}
+
+	void stop()
+	{
+		m_run = false;
+		m_clientThread.interrupt();
+		if(m_clientThread.joinable())
+			m_clientThread.try_join_for(boost::chrono::milliseconds(200));
+	}
+
+	void eventLoop();
+
+	Message handle(const Message& incomingMessage)
+	{
+		uint32_t messageType;
+		incomingMessage.get(messageType, 0);
+
+		if(messageType == (int)MessageType::Control)
+		{
+			return handleControlMessage(incomingMessage);
+		}
+
+		BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid message type"));
+	}
+
+	Message handleControlMessage(const Message& incomingMessage)
+	{
+		std::string json;
+		incomingMessage.get(json, 1);
+
+		Json::Value root;
+		Json::Reader reader;
+		if(!reader.parse(json, root))
+			BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid json"));
+
+		if(root["command"] == "request-capabilities")
+		{
+			return makeCapabilitiesMessage();
+		}
+		else if(root["command"] == "start-stream")
+		{
+			std::vector<std::string> tickers;
+			auto& tickersArray = root["tickers"];
+			for(size_t i = 0; i < tickersArray.size(); i++)
+			{
+				auto t = tickersArray[(int)i].asString();
+				tickers.push_back(t);
+			}
+			startStream(tickers);
+
+			return makeOkMessage();
+		}
+		BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid control command"));
+	}
+
+	Message makeCapabilitiesMessage()
+	{
+		Json::Value root;
+		root["node-type"] = "quotesource";
+		root["protocol-version"] = 2;
+		Json::FastWriter writer;
+
+		Message outgoing;
+		outgoing << (uint32_t)MessageType::Control;
+		outgoing << writer.write(root);
+		return outgoing;
+	}
+
+	Message makeOkMessage()
+	{
+		Json::Value root;
+		root["result"] = "success";
+		Json::FastWriter writer;
+
+		Message outgoing;
+		outgoing << (uint32_t)MessageType::Control;
+		outgoing << writer.write(root);
+		return outgoing;
+	}
+
+	void incomingTick(const std::string& ticker, const Tick& tick)
+	{
+		if(m_tickers.find(ticker) != m_tickers.end())
+		{
+			Message msg;
+			msg << (uint32_t)MessageType::Data;
+			msg << ticker;
+			msg.addFrame(Frame(&tick, sizeof(tick)));
+
+			m_proto.sendMessage(msg);
+		}
+	}
+
+	void startStream(const std::vector<std::string>& tickers)
+	{
+		for(const auto& ticker : tickers)
+		{
+			if(ticker.substr(0, 2) != "t:")
+				BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Only tick data is supported now"));
+			auto pureTicker = ticker.substr(2);
+			m_tickers.insert(pureTicker);
+		}
+	}
+
+private:
+	QuoteSource::Impl* m_quotesource;
+	MessageProtocol m_proto;
+	boost::thread m_clientThread;
+	std::unordered_set<std::string> m_tickers;
+	bool m_run;
+};
+
+struct QuoteSource::Impl
+{
+	Impl(IoLineManager& m) : manager(m),
+		run(false)
+	{
+	}
+
+	IoLineManager& manager;
+	std::string endpoint;
+	boost::thread acceptThread;
+	bool run;
+	std::vector<Reactor::Ptr> reactors;
+	std::vector<Client> clients;
+};
+
+void Client::eventLoop()
+{
+	m_run = true;
+
+	while(m_run)
+	{
+		try
+		{
+			Message incomingMessage;
+			m_proto.readMessage(incomingMessage);
+
+			Message outgoingMessage = handle(incomingMessage);
+			if(outgoingMessage.size() > 0)
+				m_proto.sendMessage(outgoingMessage);
+		}
+		catch(const IoException& e)
+		{
+			// meh
+		}
+		catch(const LibGoldmineException& e)
+		{
+			if(m_quotesource)
+			{
+				for(const auto& reactor : m_quotesource->reactors)
+				{
+					reactor->exception(e);
+				}
+			}
+
+			Json::Value root;
+			root["result"] = "error";
+			Json::FastWriter writer;
+			Message msg;
+			msg << (uint32_t)MessageType::Control;
+			msg << writer.write(root);
+			m_proto.sendMessage(msg);
+		}
+	}
 }
 
-void QuoteSource::Sink::incomingBar(const goldmine::Summary& bar)
+QuoteSource::QuoteSource(IoLineManager& manager, const std::string& endpoint) : m_impl(std::make_unique<Impl>(manager))
 {
-}
-
-void QuoteSource::Sink::incomingTick(const std::string& ticker, const goldmine::Tick& tick)
-{
-	const char* t = reinterpret_cast<const char*>(&tick);
-	std::string rawTick(t, t + sizeof(tick));
-	zmqpp::message msg;
-	msg.add(0, 0);
-	msg << (uint32_t) goldmine::MessageType::Data;
-	msg << ticker;
-	msg << rawTick;
-	m_socket.send(msg);
-}
-
-QuoteSource::QuoteSource(zmqpp::context& ctx, const std::string& endpoint) : m_ctx(ctx),
-	m_endpoint(endpoint), m_run(false)
-{
+	m_impl->endpoint = endpoint;
 }
 
 QuoteSource::~QuoteSource()
 {
-	if(m_run)
+	if(m_impl->run)
 		stop();
 }
 
 void QuoteSource::addReactor(const Reactor::Ptr& reactor)
 {
-	m_reactors.push_back(reactor);
+	m_impl->reactors.push_back(reactor);
 }
 
 void QuoteSource::removeReactor(const Reactor::Ptr& reactor)
 {
 }
 
-std::unique_ptr<QuoteSource::Sink> QuoteSource::makeTickSink()
-{
-	return std::unique_ptr<QuoteSource::Sink>(new Sink(m_ctx, "inproc://quotesource-sink"));
-}
-
 void QuoteSource::start()
 {
-	m_thread = boost::thread(std::bind(&QuoteSource::eventLoop, this));
+	m_impl->acceptThread = boost::thread(std::bind(&QuoteSource::eventLoop, this));
 }
 
 void QuoteSource::stop() noexcept
 {
 	try
 	{
-		m_run = false;
-		m_thread.interrupt();
-		if(m_thread.joinable())
-			m_thread.try_join_for(boost::chrono::milliseconds(200));
+		m_impl->run = false;
+		m_impl->acceptThread.interrupt();
+		if(m_impl->acceptThread.joinable())
+			m_impl->acceptThread.try_join_for(boost::chrono::milliseconds(200));
 	}
 	catch(const std::exception& e)
 	{
 		// Oh my
-		m_thread.detach();
+		m_impl->acceptThread.detach();
 	}
 }
 
 
 void QuoteSource::eventLoop()
 {
-	m_run = true;
+	m_impl->run = true;
 
-	zmqpp::socket controlSocket(m_ctx, zmqpp::socket_type::router);
-	controlSocket.bind(m_endpoint);
+	auto controlAcceptor = m_impl->manager.createServer(m_impl->endpoint);
 
-	zmqpp::socket sinkSocket(m_ctx, zmqpp::socket_type::pull);
-	sinkSocket.bind("inproc://quotesource-sink");
-
-	zmqpp::poller poller;
-	poller.add(controlSocket);
-	poller.add(sinkSocket);
-
-	while(m_run)
+	while(m_impl->run)
 	{
 		try
 		{
-			if(poller.poll(100))
+			auto line = controlAcceptor->waitConnection(std::chrono::milliseconds(200));
+			if(line)
 			{
-				zmqpp::message recvd;
-				if(poller.has_input(controlSocket))
-				{
-					controlSocket.receive(recvd);
-					handleSocket(controlSocket, recvd);
-				}
-				if(poller.has_input(sinkSocket))
-				{
-					handleSinkSocket(controlSocket, sinkSocket);
-				}
+				m_impl->clients.emplace_back(line, m_impl.get());
+				auto& client = m_impl->clients.back();
+				client.start();
 			}
 		}
 		catch(const LibGoldmineException& e)
 		{
-			for(const auto& reactor : m_reactors)
+			for(const auto& reactor : m_impl->reactors)
 			{
 				reactor->exception(e);
 			}
@@ -120,78 +274,11 @@ void QuoteSource::eventLoop()
 	}
 }
 
-void QuoteSource::handleSocket(zmqpp::socket& control, zmqpp::message& msg)
+void QuoteSource::incomingTick(const std::string& ticker, const Tick& tick)
 {
-	std::string peerId = msg.get<std::string>(0);
-
-	uint32_t messageType = msg.get<uint32_t>(2);
-
-	switch(goldmine::MessageType(messageType))
+	for(auto& client : m_impl->clients)
 	{
-		case goldmine::MessageType::Control:
-			{
-
-				std::string json = msg.get<std::string>(3);
-
-				Json::Value root;
-				Json::Reader reader;
-				if(!reader.parse(json, root))
-					BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Unable to parse incomning JSON"));
-
-				handleControl(peerId, control, root);
-			}
-		case goldmine::MessageType::Data:
-		case goldmine::MessageType::Service:
-		case goldmine::MessageType::Event:
-			break;
-		default:
-			BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid MessageType"));
-	}
-
-}
-
-void QuoteSource::handleControl(const std::string& peerId, zmqpp::socket& control, const Json::Value& root)
-{
-	if(root["command"] == "request-capabilities")
-	{
-		Json::Value responseJson;
-		responseJson["node-type"] = "quotesource";
-		responseJson["protocol-version"] = 2;
-		Json::FastWriter writer;
-		auto json = writer.write(responseJson);
-
-		zmqpp::message response;
-		response << peerId;
-		response.push_back(0, 0);
-		response.add((uint32_t)goldmine::MessageType::Control);
-		response.add(json);
-
-		control.send(response);
-	}
-	else if(root["command"] == "start-stream")
-	{
-		Client newClient;
-		newClient.peerId = peerId;
-		m_clients[peerId] = newClient;
-	}
-}
-
-void QuoteSource::handleSinkSocket(zmqpp::socket& control, zmqpp::socket& sink)
-{
-	for(const auto& clientPair: m_clients)
-	{
-		auto peerId = clientPair.first;
-		zmqpp::message tickMessage;
-		sink.receive(tickMessage);
-
-		zmqpp::message clientMessage;
-		clientMessage << peerId;
-		clientMessage.add(0, 0);
-		clientMessage << tickMessage.get<uint32_t>(2);
-		clientMessage << tickMessage.get<std::string>(3);
-		clientMessage << tickMessage.get<std::string>(4);
-
-		control.send(clientMessage);
+		client.incomingTick(ticker, tick);
 	}
 }
 

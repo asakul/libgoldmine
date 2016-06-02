@@ -20,6 +20,7 @@ public:
 
 	virtual ssize_t read(void* buffer, size_t buflen);
 	virtual ssize_t write(void* buffer, size_t buflen);
+	virtual void setOption(LineOption option, void* data);
 
 private:
 	std::string m_address;
@@ -59,6 +60,7 @@ public:
 	virtual ssize_t read(void* buffer, size_t buflen);
 	virtual ssize_t write(void* buffer, size_t buflen);
 
+	virtual void setOption(LineOption option, void* data);
 private:
 	std::string m_address;
 	int m_socket;

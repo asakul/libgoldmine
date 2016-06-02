@@ -59,6 +59,11 @@ ssize_t UnixSocket::write(void* buffer, size_t buflen)
 	return rc;
 }
 
+void UnixSocket::setOption(LineOption option, void* data)
+{
+	throw UnsupportedOption("");
+}
+
 UnixSocketAcceptor::UnixSocketAcceptor(const std::string& address) : m_address(address)
 {
 	m_socket = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -166,11 +171,21 @@ ssize_t TcpSocket::write(void* buffer, size_t buflen)
 	return rc;
 }
 
+void TcpSocket::setOption(LineOption option, void* data)
+{
+	throw UnsupportedOption("");
+}
+
 TcpSocketAcceptor::TcpSocketAcceptor(const std::string& address) : m_address(address)
 {
 	m_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if(m_socket < 0)
 		throw IoException(std::string("Unable to create socket: " + std::to_string(m_socket)));
+
+	int enable = 1;
+	if(setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0)
+		throw IoException(std::string("Unable to set socket option: " + std::to_string(m_socket)));
+
 
 	auto semicolon = m_address.find(':');
 	auto host = m_address.substr(0, semicolon);
