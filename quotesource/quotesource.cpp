@@ -9,6 +9,8 @@
 #include <functional>
 #include <unordered_set>
 
+#include "io/iolinemanager.h"
+
 namespace goldmine
 {
 using namespace io;

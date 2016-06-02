@@ -132,10 +132,10 @@ namespace io
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_writeCondition.notify_all();
 		if(m_buffer.availableReadSize() == 0)
-			m_readCondition.wait(lock);
+			m_readCondition.wait(lock, [&]() { return m_buffer.availableReadSize() >= buflen; });
 		return m_buffer.read(buffer, buflen);
 	}
-
+	
 	size_t DataQueue::readWithTimeout(void* buffer, size_t buflen, const std::chrono::milliseconds& timeout)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
@@ -238,6 +238,23 @@ namespace io
 
 	InprocAcceptor::~InprocAcceptor()
 	{
+		try
+		{
+			std::unique_lock<std::mutex> lock(gs_mutex);
+			for(auto it = gs_acceptors.begin(); it != gs_acceptors.end(); ++it)
+			{
+				auto acceptor = it->lock();
+				if(acceptor.get() == this)
+				{
+					gs_acceptors.erase(it);
+					return;
+				}
+			}
+		}
+		catch(const std::runtime_error& e)
+		{
+			// meh
+		}
 	}
 
 	std::shared_ptr<IoLine> InprocAcceptor::waitConnection(const std::chrono::milliseconds& timeout)
