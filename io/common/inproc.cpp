@@ -125,14 +125,16 @@ namespace io
 
 	DataQueue::~DataQueue()
 	{
+		m_readCondition.notify_all();
+		m_writeCondition.notify_all();
 	}
 
 	size_t DataQueue::read(void* buffer, size_t buflen)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_writeCondition.notify_all();
-		if(m_buffer.availableReadSize() == 0)
-			m_readCondition.wait(lock, [&]() { return m_buffer.availableReadSize() >= buflen; });
+		while(m_buffer.availableReadSize() == 0)
+			m_readCondition.wait(lock);
 		return m_buffer.read(buffer, buflen);
 	}
 	
@@ -154,10 +156,13 @@ namespace io
 		std::unique_lock<std::mutex> lock(m_mutex);
 		if(buflen >= m_buffer.size())
 			return 0;
-		m_readCondition.notify_all();
 		if(m_buffer.availableWriteSize() < buflen)
+		{
 			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
-		return m_buffer.write(buffer, buflen);
+		}
+		size_t ret = m_buffer.write(buffer, buflen);
+		m_readCondition.notify_all();
+		return ret;
 	}
 
 	size_t DataQueue::availableReadSize() const
@@ -175,7 +180,8 @@ namespace io
 	static std::list<std::weak_ptr<InprocAcceptor>> gs_acceptors;
 	static std::list<std::weak_ptr<InprocLine>> gs_connectQueue;
 
-	InprocLine::InprocLine(const std::shared_ptr<InprocLine>& other) : m_address(other->address())
+	InprocLine::InprocLine(const std::shared_ptr<InprocLine>& other) : m_address(other->address()),
+		m_readTimeout(0)
 	{
 		m_in = std::make_shared<DataQueue>(65536);
 		m_out = std::make_shared<DataQueue>(65536);
@@ -188,7 +194,8 @@ namespace io
 		other->m_condition.notify_one();
 	}
 
-	InprocLine::InprocLine(const std::string& address) : m_address(address)
+	InprocLine::InprocLine(const std::string& address) : m_address(address),
+		m_readTimeout(0)
 	{
 	}
 
@@ -279,6 +286,7 @@ namespace io
 						auto otherLine = std::make_shared<InprocLine>(line);
 						return otherLine;
 					}
+					++it;
 				}
 			}
 
@@ -299,6 +307,8 @@ namespace io
 
 	InprocLineFactory::~InprocLineFactory()
 	{
+		gs_connectQueue.clear();
+		gs_acceptors.clear();
 	}
 
 	bool InprocLineFactory::supportsScheme(const std::string& scheme)
@@ -313,6 +323,7 @@ namespace io
 			std::unique_lock<std::mutex> lock(gs_mutex);
 			line = std::make_shared<InprocLine>(address);
 			gs_connectQueue.push_back(std::weak_ptr<InprocLine>(line));
+			gs_cond.notify_all();
 		}
 
 		line->waitForConnection();

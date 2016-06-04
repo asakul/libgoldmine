@@ -73,7 +73,7 @@ static void threadedCheckIo(const std::shared_ptr<IoLineManager>& manager, const
 TEST_CASE("Unix socket", "[io]")
 {
 	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::make_unique<UnixSocketFactory>());
+	manager->registerFactory(std::unique_ptr<UnixSocketFactory>(new UnixSocketFactory));
 
 	checkIo(manager, "local:///tmp/foo");
 }
@@ -81,7 +81,7 @@ TEST_CASE("Unix socket", "[io]")
 TEST_CASE("TCP socket", "[io]")
 {
 	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::make_unique<TcpSocketFactory>());
+	manager->registerFactory(std::unique_ptr<TcpSocketFactory>(new TcpSocketFactory));
 
 	threadedCheckIo(manager, "tcp://127.0.0.1:6000");
 }

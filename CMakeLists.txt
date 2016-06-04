@@ -25,9 +25,7 @@ endif(WIN32)
 
 find_package(Threads)
 
-set(ZMQ_LIBRARIES -lzmqpp -lzmq)
-
-SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++14 -mtune=generic ${PLATFORM_CXX_FLAGS} -fno-omit-frame-pointer")
+SET(CMAKE_CXX_FLAGS  "-Wall -fno-strict-aliasing -fexceptions -g --std=gnu++11 -mtune=generic ${PLATFORM_CXX_FLAGS} -fno-omit-frame-pointer")
 
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)

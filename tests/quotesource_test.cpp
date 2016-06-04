@@ -69,33 +69,29 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 TEST_CASE("QuoteSource", "[quotesource]")
 {
 	IoLineManager manager;
-	manager.registerFactory(std::make_unique<InprocLineFactory>());
+	manager.registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
 
 	auto exceptionsReactor = std::make_shared<ExceptionsReactor>();
-	QuoteSource source(manager, "inproc://control");
+	QuoteSource source(manager, "inproc://control-quotesource");
 	source.addReactor(exceptionsReactor);
 	source.start();
 
-	auto control = manager.createClient("inproc://control");
+	auto control = manager.createClient("inproc://control-quotesource");
 	int timeout = 500;
 	control->setOption(LineOption::ReceiveTimeout, &timeout);
 	MessageProtocol controlProto(control);
 
 	SECTION("Capability request")
 	{
-		SECTION("Correct sequence")
-		{
-			Json::Value root;
-			root["command"] = "request-capabilities";
-			sendControlMessage(root, controlProto);
+		Json::Value root;
+		root["command"] = "request-capabilities";
+		sendControlMessage(root, controlProto);
 
-			bool receiveOk = receiveControlMessage(root, controlProto);
-			REQUIRE(receiveOk);
+		bool receiveOk = receiveControlMessage(root, controlProto);
+		REQUIRE(receiveOk);
 
-			REQUIRE(root["node-type"].asString() == "quotesource");
-			REQUIRE(root["protocol-version"].asInt() == 2);
-		}
-
+		REQUIRE(root["node-type"].asString() == "quotesource");
+		REQUIRE(root["protocol-version"].asInt() == 2);
 	}
 
 	SECTION("Start stream request")

@@ -192,6 +192,7 @@ void MessageProtocol::readMessage(Message& m)
 
 		m.addFrame(Frame(std::move(data)));
 	}
+	//printf("Proto::readMessage done: %x\n", this);
 }
 
 void MessageProtocol::sendMessage(const Message& m)

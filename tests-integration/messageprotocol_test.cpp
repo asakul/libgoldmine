@@ -13,7 +13,7 @@ using namespace goldmine::io;
 TEST_CASE("MessageProtocol", "[io]")
 {
 	IoLineManager manager;
-	manager.registerFactory(std::make_unique<InprocLineFactory>());
+	manager.registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
 
 	SECTION("Small message")
 	{
@@ -83,6 +83,98 @@ TEST_CASE("MessageProtocol", "[io]")
 				REQUIRE(recv_msg.frame(frame) == msg.frame(frame));
 			}
 		}
+	}
+
+	SECTION("Big read/write with delays")
+	{
+		std::vector<char> buf(10 * 1024 * 1024);
+		std::vector<char> recv_buf(10 * 1024 * 1024);
+		std::iota(buf.begin(), buf.end(), 0);
+
+		const int chunkSize = 1024;
+		int totalChunks = buf.size() / chunkSize;
+
+		auto acceptor = manager.createServer("inproc://foo");
+		std::thread clientThread([&](){
+				auto client = manager.createClient("inproc://foo");
+				MessageProtocol proto(client);
+				for(size_t i = 0; i < totalChunks; i++)
+				{
+					if((rand() % 100) == 0)
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					auto start = buf.data() + chunkSize * i;
+					Message msg;
+					msg.addFrame(Frame(start, chunkSize));
+					proto.sendMessage(msg);
+				}
+			});
+
+		std::thread serverThread([&](){
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				MessageProtocol proto(server);
+				for(size_t i = 0; i < totalChunks; i++)
+				{
+					if((rand() % 100) == 0)
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					auto start = recv_buf.data() + chunkSize * i;
+					Message msg;
+					proto.readMessage(msg);
+					auto frame = msg.frame(0);
+					memcpy(start, frame.data(), frame.size());
+				}
+			});
+
+		clientThread.join();
+		serverThread.join();
+
+		REQUIRE(std::equal(buf.begin(), buf.end(), recv_buf.begin()));
+	}
+
+	SECTION("Big read/write with delays and timeouts")
+	{
+		std::vector<char> buf(10 * 1024 * 1024);
+		std::vector<char> recv_buf(10 * 1024 * 1024);
+		std::iota(buf.begin(), buf.end(), 0);
+
+		const int chunkSize = 1024;
+		int totalChunks = buf.size() / chunkSize;
+
+		auto acceptor = manager.createServer("inproc://foo");
+		std::thread clientThread([&](){
+				auto client = manager.createClient("inproc://foo");
+				MessageProtocol proto(client);
+				for(size_t i = 0; i < totalChunks; i++)
+				{
+					if((rand() % 100) == 0)
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					auto start = buf.data() + chunkSize * i;
+					Message msg;
+					msg.addFrame(Frame(start, chunkSize));
+					proto.sendMessage(msg);
+				}
+			});
+
+		std::thread serverThread([&](){
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				int timeout = 100;
+				server->setOption(LineOption::ReceiveTimeout, &timeout);
+				MessageProtocol proto(server);
+				for(size_t i = 0; i < totalChunks; i++)
+				{
+					if((rand() % 100) == 0)
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
+					auto start = recv_buf.data() + chunkSize * i;
+					Message msg;
+					proto.readMessage(msg);
+					auto frame = msg.frame(0);
+					memcpy(start, frame.data(), frame.size());
+				}
+			});
+
+		clientThread.join();
+		serverThread.join();
+
+		REQUIRE(std::equal(buf.begin(), buf.end(), recv_buf.begin()));
 	}
 }
 

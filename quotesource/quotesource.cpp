@@ -6,6 +6,7 @@
 
 #include "io/iolinemanager.h"
 
+#include <atomic>
 #include <functional>
 #include <unordered_set>
 
@@ -23,11 +24,13 @@ public:
 		m_proto(line),
 		m_run(false)
 	{
+		int timeout = 100;
+		line->setOption(LineOption::ReceiveTimeout, &timeout);
 	}
 
 	Client(Client&& other) : m_proto(std::move(other.m_proto)),
 		m_clientThread(std::move(other.m_clientThread)),
-		m_run(other.m_run)
+		m_run(other.m_run.load())
 	{
 	}
 
@@ -148,7 +151,7 @@ private:
 	MessageProtocol m_proto;
 	boost::thread m_clientThread;
 	std::unordered_set<std::string> m_tickers;
-	bool m_run;
+	std::atomic<bool> m_run;
 };
 
 struct QuoteSource::Impl
@@ -161,7 +164,7 @@ struct QuoteSource::Impl
 	IoLineManager& manager;
 	std::string endpoint;
 	boost::thread acceptThread;
-	bool run;
+	std::atomic<bool> run;
 	std::vector<Reactor::Ptr> reactors;
 	std::vector<Client> clients;
 };
@@ -179,7 +182,9 @@ void Client::eventLoop()
 
 			Message outgoingMessage = handle(incomingMessage);
 			if(outgoingMessage.size() > 0)
+			{
 				m_proto.sendMessage(outgoingMessage);
+			}
 		}
 		catch(const IoException& e)
 		{
@@ -206,7 +211,7 @@ void Client::eventLoop()
 	}
 }
 
-QuoteSource::QuoteSource(IoLineManager& manager, const std::string& endpoint) : m_impl(std::make_unique<Impl>(manager))
+QuoteSource::QuoteSource(IoLineManager& manager, const std::string& endpoint) : m_impl(new Impl(manager))
 {
 	m_impl->endpoint = endpoint;
 }
@@ -242,8 +247,16 @@ void QuoteSource::stop() noexcept
 	}
 	catch(const std::exception& e)
 	{
-		// Oh my
-		m_impl->acceptThread.detach();
+	}
+	for(auto& client : m_impl->clients)
+	{
+		try
+		{
+			client.stop();
+		}
+		catch(const std::exception& e)
+		{
+		}
 	}
 }
 

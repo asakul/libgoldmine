@@ -14,7 +14,7 @@ using namespace goldmine::io;
 TEST_CASE("InprocLine", "[io]")
 {
 	IoLineManager manager;
-	manager.registerFactory(std::make_unique<InprocLineFactory>());
+	manager.registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
 
 	SECTION("Simple read/write")
 	{
@@ -109,6 +109,54 @@ TEST_CASE("InprocLine", "[io]")
 		serverThread.join();
 
 		REQUIRE(std::equal(buf.begin(), buf.end(), recv_buf.begin()));
+	}
+
+	SECTION("Connection delayed at server side")
+	{
+		std::array<char, 1024> buf;
+		std::array<char, 1024> recv_buf {};
+		std::iota(buf.begin(), buf.end(), 0);
+
+		auto acceptor = manager.createServer("inproc://foo");
+		std::thread clientThread([&](){
+				auto client = manager.createClient("inproc://foo");
+				client->write(buf.data(), buf.size());
+			});
+
+		std::thread serverThread([&](){
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(200));
+				server->read(recv_buf.data(), recv_buf.size());
+			});
+
+		clientThread.join();
+		serverThread.join();
+
+		REQUIRE(buf == recv_buf);
+	}
+
+	SECTION("Connection delayed at client side")
+	{
+		std::array<char, 1024> buf;
+		std::array<char, 1024> recv_buf {};
+		std::iota(buf.begin(), buf.end(), 0);
+
+		auto acceptor = manager.createServer("inproc://foo");
+		std::thread clientThread([&](){
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				auto client = manager.createClient("inproc://foo");
+				client->write(buf.data(), buf.size());
+			});
+
+		std::thread serverThread([&](){
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(200));
+				server->read(recv_buf.data(), recv_buf.size());
+			});
+
+		clientThread.join();
+		serverThread.join();
+
+		REQUIRE(buf == recv_buf);
 	}
 }
 
