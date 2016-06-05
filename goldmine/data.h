@@ -27,6 +27,12 @@ namespace goldmine
 		StreamEnd = 0x01
 	};
 
+	enum class ServiceDataType
+	{
+		Heartbeat = 0x01,
+		NextTick = 0x02
+	};
+
 	enum class Datatype
 	{
 		Price = 0x01,
@@ -46,6 +52,9 @@ namespace goldmine
 		int64_t value;
 		int32_t fractional; // 1e-9 parts
 
+		decimal_fixed() : value(0), fractional(0)
+		{
+		}
 		decimal_fixed(int64_t int_part, int32_t nano) : value(int_part), fractional(nano)
 		{
 		}
@@ -53,6 +62,10 @@ namespace goldmine
 		decimal_fixed(double v) : value(::floor(v)), fractional((v - floor(v)) * 1e9)
 		{
 
+		}
+
+		~decimal_fixed()
+		{
 		}
 
 		decimal_fixed(const decimal_fixed& other) = default;
@@ -99,6 +112,7 @@ namespace goldmine
 	struct Tick
 	{
 		Tick() : packet_type((int)PacketType::Tick), timestamp(0), useconds(0), datatype(0), value(0), volume(0) {}
+
 		uint32_t packet_type; // = 0x01
 		uint64_t timestamp;
 		uint32_t useconds;

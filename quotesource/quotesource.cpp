@@ -9,6 +9,7 @@
 #include <atomic>
 #include <functional>
 #include <unordered_set>
+#include <boost/lockfree/spsc_queue.hpp>
 
 #include "io/iolinemanager.h"
 
@@ -22,7 +23,9 @@ public:
 	Client(const std::shared_ptr<IoLine>& line, QuoteSource::Impl* impl) :
 		m_quotesource(impl),
 		m_proto(line),
-		m_run(false)
+		m_run(false),
+		m_manualMode(false),
+		m_tickQueue(1024)
 	{
 		int timeout = 100;
 		line->setOption(LineOption::ReceiveTimeout, &timeout);
@@ -30,7 +33,8 @@ public:
 
 	Client(Client&& other) : m_proto(std::move(other.m_proto)),
 		m_clientThread(std::move(other.m_clientThread)),
-		m_run(other.m_run.load())
+		m_run(other.m_run.load()),
+		m_tickQueue(1024)
 	{
 	}
 
@@ -63,6 +67,10 @@ public:
 		{
 			return handleControlMessage(incomingMessage);
 		}
+		else if(messageType == (int)MessageType::Service)
+		{
+			return handleServiceMessage(incomingMessage);
+		}
 
 		BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid message type"));
 	}
@@ -90,11 +98,29 @@ public:
 				auto t = tickersArray[(int)i].asString();
 				tickers.push_back(t);
 			}
+			m_manualMode = root["manual-mode"].asBool();
 			startStream(tickers);
+			if(m_manualMode)
+			{
+				m_senderThread = boost::thread(std::bind(&Client::sendStreamThread, this));
+			}
 
 			return makeOkMessage();
 		}
 		BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Invalid control command"));
+	}
+
+	Message handleServiceMessage(const Message& incomingMessage)
+	{
+		int serviceMessageType = incomingMessage.get<uint32_t>(1);
+		if(serviceMessageType == (int)ServiceDataType::NextTick)
+		{
+			m_nextTickMessages.fetch_add(1);
+			m_tickQueueCondition.notify_one();
+		}
+
+		Message msg;
+		return msg;
 	}
 
 	Message makeCapabilitiesMessage()
@@ -124,14 +150,16 @@ public:
 
 	void incomingTick(const std::string& ticker, const Tick& tick)
 	{
-		if(m_tickers.find(ticker) != m_tickers.end())
+		if(!m_manualMode)
 		{
-			Message msg;
-			msg << (uint32_t)MessageType::Data;
-			msg << ticker;
-			msg.addFrame(Frame(&tick, sizeof(tick)));
-
-			m_proto.sendMessage(msg);
+			if(m_tickers.find(ticker) != m_tickers.end())
+			{
+				sendTick(ticker, tick);
+			}
+		}
+		else
+		{
+			m_tickQueue.push(std::make_pair(ticker, tick));
 		}
 	}
 
@@ -146,12 +174,50 @@ public:
 		}
 	}
 
+	void sendStreamThread()
+	{
+		while(m_run)
+		{
+			if(!m_tickQueue.empty() && (m_nextTickMessages.load() > 0))
+			{
+				std::pair<std::string, Tick> tick;
+				if(m_tickQueue.pop(tick))
+				{
+					sendTick(tick.first, tick.second);
+					m_nextTickMessages.fetch_sub(1);
+				}
+			}
+			else
+			{
+				boost::unique_lock<boost::mutex> lock(m_tickQueueMutex);
+				m_tickQueueCondition.wait_for(lock, boost::chrono::milliseconds(200));
+			}
+		}
+	}
+
+	void sendTick(const std::string& ticker, const Tick& tick)
+	{
+		Message msg;
+		msg << (uint32_t)MessageType::Data;
+		msg << ticker;
+		msg.addFrame(Frame(&tick, sizeof(tick)));
+
+		m_proto.sendMessage(msg);
+	}
+
 private:
 	QuoteSource::Impl* m_quotesource;
 	MessageProtocol m_proto;
 	boost::thread m_clientThread;
 	std::unordered_set<std::string> m_tickers;
 	std::atomic<bool> m_run;
+	bool m_manualMode;
+
+	boost::thread m_senderThread;
+	boost::mutex m_tickQueueMutex;
+	boost::condition_variable m_tickQueueCondition;
+	boost::lockfree::spsc_queue<std::pair<std::string, Tick>> m_tickQueue;
+	std::atomic_int m_nextTickMessages;
 };
 
 struct QuoteSource::Impl

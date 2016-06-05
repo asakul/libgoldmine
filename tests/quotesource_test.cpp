@@ -77,7 +77,7 @@ TEST_CASE("QuoteSource", "[quotesource]")
 	source.start();
 
 	auto control = manager.createClient("inproc://control-quotesource");
-	int timeout = 500;
+	int timeout = 100;
 	control->setOption(LineOption::ReceiveTimeout, &timeout);
 	MessageProtocol controlProto(control);
 
@@ -130,6 +130,63 @@ TEST_CASE("QuoteSource", "[quotesource]")
 			const goldmine::Tick* recvdTick = reinterpret_cast<const goldmine::Tick*>(rawTick.data());
 
 			REQUIRE(*recvdTick == tick);
+		}
+
+		SECTION("Request ticks, manual mode, without next tick message - timeout")
+		{
+			Json::Value tickers(Json::arrayValue);
+			tickers.append("t:RIM6");
+			Json::Value root;
+			root["command"] = "start-stream";
+			root["manual-mode"] = true;
+			root["tickers"] = tickers;
+			sendControlMessage(root, controlProto);
+
+			Message okMessage;
+			controlProto.readMessage(okMessage);
+
+			goldmine::Tick tick;
+			tick.timestamp = 12;
+			tick.useconds = 0;
+			tick.packet_type = (int)goldmine::PacketType::Tick;
+			tick.datatype = (int)goldmine::Datatype::Price;
+			tick.value = goldmine::decimal_fixed(42, 0);
+
+			source.incomingTick("RIM6", tick);
+
+			Message recvd;
+			REQUIRE_THROWS(controlProto.readMessage(recvd));
+		}
+
+		SECTION("Request ticks, manual mode")
+		{
+			Json::Value tickers(Json::arrayValue);
+			tickers.append("t:RIM6");
+			Json::Value root;
+			root["command"] = "start-stream";
+			root["manual-mode"] = true;
+			root["tickers"] = tickers;
+			sendControlMessage(root, controlProto);
+
+			Message okMessage;
+			controlProto.readMessage(okMessage);
+
+			Message nextTickMessage;
+			nextTickMessage << (uint32_t)goldmine::MessageType::Service;
+			nextTickMessage << (uint32_t)goldmine::ServiceDataType::NextTick;
+			controlProto.sendMessage(nextTickMessage);
+
+			goldmine::Tick tick;
+			tick.timestamp = 12;
+			tick.useconds = 0;
+			tick.packet_type = (int)goldmine::PacketType::Tick;
+			tick.datatype = (int)goldmine::Datatype::Price;
+			tick.value = goldmine::decimal_fixed(42, 0);
+
+			source.incomingTick("RIM6", tick);
+
+			Message recvd;
+			REQUIRE_THROWS(controlProto.readMessage(recvd));
 		}
 	}
 
