@@ -6,6 +6,9 @@
 #include "io/common/inproc.h"
 
 #include <thread>
+#ifdef __MINGW32__
+#include "mingw.thread.h"
+#endif
 #include <cstring>
 
 using namespace goldmine::io;

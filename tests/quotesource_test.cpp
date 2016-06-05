@@ -186,7 +186,18 @@ TEST_CASE("QuoteSource", "[quotesource]")
 			source.incomingTick("RIM6", tick);
 
 			Message recvd;
-			REQUIRE_THROWS(controlProto.readMessage(recvd));
+			controlProto.readMessage(recvd);
+
+			REQUIRE(recvd.size() == 3);
+			int messageType = recvd.get<uint32_t>(0);
+			REQUIRE(messageType == (int)goldmine::MessageType::Data);
+			std::string ticker = recvd.get<std::string>(1);
+			REQUIRE(ticker == "RIM6");
+
+			std::string rawTick = recvd.get<std::string>(2);
+			const goldmine::Tick* recvdTick = reinterpret_cast<const goldmine::Tick*>(rawTick.data());
+
+			REQUIRE(*recvdTick == tick);
 		}
 	}
 

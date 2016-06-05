@@ -8,6 +8,10 @@
 
 #include <vector>
 #include <mutex>
+#ifdef __MINGW32__
+#include "mingw.mutex.h"
+#include "mingw.condition_variable.h"
+#endif
 #include <condition_variable>
 
 namespace goldmine

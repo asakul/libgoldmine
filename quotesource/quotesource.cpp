@@ -25,7 +25,8 @@ public:
 		m_proto(line),
 		m_run(false),
 		m_manualMode(false),
-		m_tickQueue(1024)
+		m_tickQueue(1024),
+		m_nextTickMessages(0)
 	{
 		int timeout = 100;
 		line->setOption(LineOption::ReceiveTimeout, &timeout);
@@ -34,7 +35,8 @@ public:
 	Client(Client&& other) : m_proto(std::move(other.m_proto)),
 		m_clientThread(std::move(other.m_clientThread)),
 		m_run(other.m_run.load()),
-		m_tickQueue(1024)
+		m_tickQueue(1024),
+		m_nextTickMessages(0)
 	{
 	}
 
@@ -50,6 +52,7 @@ public:
 
 	void stop()
 	{
+		m_tickQueueCondition.notify_all();
 		m_run = false;
 		m_clientThread.interrupt();
 		if(m_clientThread.joinable())
@@ -160,6 +163,7 @@ public:
 		else
 		{
 			m_tickQueue.push(std::make_pair(ticker, tick));
+			m_tickQueueCondition.notify_one();
 		}
 	}
 
@@ -190,7 +194,7 @@ public:
 			else
 			{
 				boost::unique_lock<boost::mutex> lock(m_tickQueueMutex);
-				m_tickQueueCondition.wait_for(lock, boost::chrono::milliseconds(200));
+				m_tickQueueCondition.wait_for(lock, boost::chrono::milliseconds(40));
 			}
 		}
 	}

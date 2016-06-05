@@ -31,7 +31,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp)
-include_directories(${ZMQ_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mingw-std-threads)
 
 set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
@@ -41,13 +41,23 @@ set(goldmine-sources
 
 		io/common/inproc.cpp
 
-		io/posix/io_socket.cpp
-
 		quotesource/quotesource.cpp
 	)
 
+if(WIN32)
+	list(APPEND goldmine-sources
+		io/win32/win_socket.cpp)
+elseif(UNIX)
+	list(APPEND goldmine-sources
+		io/posix/io_socket.cpp)
+endif(WIN32)
+
 add_library(goldmine SHARED ${goldmine-sources})
-target_link_libraries(goldmine ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+target_link_libraries(goldmine ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+if(WIN32)
+target_link_libraries(goldmine -lws2_32)
+endif(WIN32)
 
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
@@ -72,11 +82,26 @@ target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_I
 set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
 
+if(WIN32)
+target_link_libraries(libgoldmine-tests -lws2_32)
+endif(WIN32)
+
 set(tests-integration-sources
 	tests-integration/inproc_integration_test.cpp
 	tests-integration/messageprotocol_test.cpp
-	tests-integration/unixsocket_test.cpp
 	)
+
+if(UNIX)
+	list(APPEND tests-integration-sources
+		tests-integration/unixsocket_test.cpp
+		)
+endif(UNIX)
+
+if(WIN32)
+	list(APPEND tests-integration-sources
+		tests-integration/winsocket_test.cpp
+		)
+endif(WIN32)
 
 add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
 	${tests-integration-sources}
@@ -88,6 +113,11 @@ target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${CMAKE_T
 
 set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
+
+if(WIN32)
+target_link_libraries(libgoldmine-integration-tests -lws2_32)
+endif(WIN32)
+
 
 include(CodeCoverage)
 setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests libgoldmine-integration-tests coverage)
