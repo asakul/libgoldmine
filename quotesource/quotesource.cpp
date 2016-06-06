@@ -17,6 +17,22 @@ namespace goldmine
 {
 using namespace io;
 
+class Client;
+struct QuoteSource::Impl
+{
+	Impl(IoLineManager& m) : manager(m),
+		run(false)
+	{
+	}
+
+	IoLineManager& manager;
+	std::string endpoint;
+	boost::thread acceptThread;
+	std::atomic<bool> run;
+	std::vector<Reactor::Ptr> reactors;
+	std::vector<Client> clients;
+};
+
 class Client
 {
 public:
@@ -106,6 +122,12 @@ public:
 			if(m_manualMode)
 			{
 				m_senderThread = boost::thread(std::bind(&Client::sendStreamThread, this));
+			}
+
+			for(const auto& reactor : m_quotesource->reactors)
+			{
+				for(const auto& ticker : tickers)
+					reactor->clientRequestedStream("", ticker);
 			}
 
 			return makeOkMessage();
@@ -224,20 +246,6 @@ private:
 	std::atomic_int m_nextTickMessages;
 };
 
-struct QuoteSource::Impl
-{
-	Impl(IoLineManager& m) : manager(m),
-		run(false)
-	{
-	}
-
-	IoLineManager& manager;
-	std::string endpoint;
-	boost::thread acceptThread;
-	std::atomic<bool> run;
-	std::vector<Reactor::Ptr> reactors;
-	std::vector<Client> clients;
-};
 
 void Client::eventLoop()
 {

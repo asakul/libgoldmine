@@ -10,6 +10,7 @@
 #include "mingw.thread.h"
 #endif
 #include <cstring>
+#include <numeric>
 
 using namespace goldmine::io;
 

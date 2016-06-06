@@ -28,12 +28,13 @@ public:
 	{
 	}
 
-	void clientRequestedStream(const std::string&, const std::string&)
+	void clientRequestedStream(const std::string& identity, const std::string& streamId)
 	{
+		streamRequests.push_back(std::make_tuple(identity, streamId));
 	}
 
-
 	std::vector<LibGoldmineException> exceptions;
+	std::vector<std::tuple<std::string, std::string>> streamRequests;
 };
 
 static void sendControlMessage(const Json::Value& root, MessageProtocol& line)
@@ -130,6 +131,12 @@ TEST_CASE("QuoteSource", "[quotesource]")
 			const goldmine::Tick* recvdTick = reinterpret_cast<const goldmine::Tick*>(rawTick.data());
 
 			REQUIRE(*recvdTick == tick);
+
+			SECTION("Reactor notified")
+			{
+				auto streamRequest = exceptionsReactor->streamRequests.front();
+				REQUIRE(std::get<1>(streamRequest) == "t:RIM6");
+			}
 		}
 
 		SECTION("Request ticks, manual mode, without next tick message - timeout")
