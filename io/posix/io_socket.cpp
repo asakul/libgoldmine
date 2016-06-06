@@ -72,7 +72,38 @@ ssize_t UnixSocket::write(void* buffer, size_t buflen)
 
 void UnixSocket::setOption(LineOption option, void* data)
 {
-	throw UnsupportedOption("");
+	switch(option)
+	{
+		case LineOption::ReceiveTimeout:
+			{
+				int msecs = *(int*)data;
+				int secs = msecs % 1000;
+				int restMsecs = msecs - secs * 1000;
+				struct timeval timeout;
+				timeout.tv_sec = secs;
+				timeout.tv_usec = restMsecs * 1000;
+
+				setsockopt(m_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+							sizeof(timeout));
+			}
+			break;
+
+		case LineOption::SendTimeout:
+			{
+				int msecs = *(int*)data;
+				int secs = msecs % 1000;
+				int restMsecs = msecs - secs * 1000;
+				struct timeval timeout;
+				timeout.tv_sec = secs;
+				timeout.tv_usec = restMsecs * 1000;
+
+				setsockopt(m_socket, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout,
+							sizeof(timeout));
+			}
+			break;
+		default:
+			throw UnsupportedOption("");
+	}
 }
 
 UnixSocketAcceptor::UnixSocketAcceptor(const std::string& address) : m_address(address)
@@ -195,7 +226,38 @@ ssize_t TcpSocket::write(void* buffer, size_t buflen)
 
 void TcpSocket::setOption(LineOption option, void* data)
 {
-	throw UnsupportedOption("");
+	switch(option)
+	{
+		case LineOption::ReceiveTimeout:
+			{
+				int msecs = *(int*)data;
+				int secs = msecs % 1000;
+				int restMsecs = msecs - secs * 1000;
+				struct timeval timeout;
+				timeout.tv_sec = secs;
+				timeout.tv_usec = restMsecs * 1000;
+
+				setsockopt(m_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+							sizeof(timeout));
+			}
+			break;
+
+		case LineOption::SendTimeout:
+			{
+				int msecs = *(int*)data;
+				int secs = msecs % 1000;
+				int restMsecs = msecs - secs * 1000;
+				struct timeval timeout;
+				timeout.tv_sec = secs;
+				timeout.tv_usec = restMsecs * 1000;
+
+				setsockopt(m_socket, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout,
+							sizeof(timeout));
+			}
+			break;
+		default:
+			throw UnsupportedOption("");
+	}
 }
 
 TcpSocketAcceptor::TcpSocketAcceptor(const std::string& address) : m_address(address)
