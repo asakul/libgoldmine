@@ -46,7 +46,9 @@ set(goldmine-sources
 
 if(WIN32)
 	list(APPEND goldmine-sources
-		io/win32/win_socket.cpp)
+		io/win32/win_socket.cpp
+		io/win32/pipes.cpp
+		)
 elseif(UNIX)
 	list(APPEND goldmine-sources
 		io/posix/io_socket.cpp)
@@ -100,6 +102,7 @@ endif(UNIX)
 if(WIN32)
 	list(APPEND tests-integration-sources
 		tests-integration/winsocket_test.cpp
+		tests-integration/pipes_test.cpp
 		)
 endif(WIN32)
 
