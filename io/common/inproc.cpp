@@ -119,7 +119,8 @@ namespace io
 		}
 	}
 
-	DataQueue::DataQueue(size_t bufferSize) : m_buffer(bufferSize)
+	DataQueue::DataQueue(size_t bufferSize) : m_buffer(bufferSize),
+		m_connected(false)
 	{
 	}
 
@@ -134,7 +135,14 @@ namespace io
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_writeCondition.notify_all();
 		while(m_buffer.availableReadSize() == 0)
+		{
+			if(!m_connected)
+				throw ConnectionLost("");
 			m_readCondition.wait(lock);
+
+			if((m_buffer.availableReadSize() == 0) && (!m_connected))
+				throw ConnectionLost("");
+		}
 		return m_buffer.read(buffer, buflen);
 	}
 	
@@ -144,9 +152,18 @@ namespace io
 		m_writeCondition.notify_all();
 		if(m_buffer.availableReadSize() == 0)
 		{
+			if(!m_connected)
+				throw ConnectionLost("");
 			bool rc = m_readCondition.wait_for(lock, timeout, [&]() { return m_buffer.availableReadSize() > 0; });
 			if(!rc)
+			{
+				if(!m_connected)
+					throw ConnectionLost("");
 				return 0;
+			}
+
+			if((m_buffer.availableReadSize() == 0) && (!m_connected))
+				throw ConnectionLost("");
 		}
 		return m_buffer.read(buffer, buflen);
 	}
@@ -158,7 +175,12 @@ namespace io
 			return 0;
 		if(m_buffer.availableWriteSize() < buflen)
 		{
+			if(!m_connected)
+				throw ConnectionLost("");
 			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
+
+			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
+				throw ConnectionLost("");
 		}
 		size_t ret = m_buffer.write(buffer, buflen);
 		m_readCondition.notify_all();
@@ -173,6 +195,21 @@ namespace io
 	size_t DataQueue::availableWriteSize() const
 	{
 		return m_buffer.availableWriteSize();
+	}
+
+	void DataQueue::setConnectionFlag(bool c)
+	{
+		if(c)
+			m_connected = c;
+		else
+		{
+			if(m_connected)
+			{
+				m_connected = false;
+				m_readCondition.notify_all();
+				m_writeCondition.notify_all();
+			}
+		}
 	}
 
 	static std::mutex gs_mutex;
@@ -191,6 +228,9 @@ namespace io
 		other->m_out = m_in;
 		other->m_in = m_out;
 
+		m_out->setConnectionFlag(true);
+		m_in->setConnectionFlag(true);
+
 		other->m_condition.notify_one();
 	}
 
@@ -201,6 +241,8 @@ namespace io
 
 	InprocLine::~InprocLine()
 	{
+		m_out->setConnectionFlag(false);
+		m_in->setConnectionFlag(false);
 	}
 
 	ssize_t InprocLine::read(void* buffer, size_t buflen)

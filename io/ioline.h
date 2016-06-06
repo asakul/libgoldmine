@@ -30,6 +30,12 @@ public:
 	UnsupportedOption(const std::string& errmsg) : IoException(errmsg) {}
 };
 
+class ConnectionLost : public IoException
+{
+public:
+	ConnectionLost(const std::string& errmsg) : IoException(errmsg) {}
+};
+
 enum class LineOption
 {
 	ReceiveTimeout = 1,

@@ -161,6 +161,38 @@ TEST_CASE("InprocLine", "[io]")
 
 		REQUIRE(buf == recv_buf);
 	}
+
+	SECTION("Connection loss")
+	{
+		std::array<char, 1024> buf;
+		std::array<char, 1024> recv_buf {};
+		std::iota(buf.begin(), buf.end(), 0);
+
+		auto acceptor = manager.createServer("inproc://foo");
+		std::thread clientThread([&](){
+				auto client = manager.createClient("inproc://foo");
+			});
+
+		bool hasConnectionLoss = false;
+		std::thread serverThread([&](){
+				auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+				int timeout = 100;
+				server->setOption(LineOption::ReceiveTimeout, &timeout);
+				try
+				{
+					server->read(recv_buf.data(), recv_buf.size());
+				}
+				catch(const ConnectionLost& e)
+				{
+					hasConnectionLoss = true;
+				}
+			});
+
+		clientThread.join();
+		serverThread.join();
+
+		REQUIRE(hasConnectionLoss);
+	}
 }
 
 

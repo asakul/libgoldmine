@@ -58,12 +58,14 @@ public:
 	size_t availableReadSize() const;
 	size_t availableWriteSize() const;
 
+	void setConnectionFlag(bool c);
 private:
 	RingBuffer m_buffer;
 
 	std::mutex m_mutex;
 	std::condition_variable m_readCondition;
 	std::condition_variable m_writeCondition;
+	bool m_connected;
 };
 
 class InprocLine : public IoLine

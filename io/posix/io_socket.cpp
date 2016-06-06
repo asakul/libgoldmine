@@ -50,6 +50,17 @@ void UnixSocket::connect()
 ssize_t UnixSocket::read(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::read(m_socket, buffer, buflen);
+	if(rc < 0)
+	{
+		if((errno == ECONNRESET) || (errno == ENOTCONN))
+			throw ConnectionLost("");
+		return 0;
+	}
+	else if(rc == 0)
+	{
+		if(errno != ETIMEDOUT)
+			throw ConnectionLost("");
+	}
 	return rc;
 }
 
@@ -162,6 +173,17 @@ void TcpSocket::connect()
 ssize_t TcpSocket::read(void* buffer, size_t buflen)
 {
 	ssize_t rc = ::read(m_socket, buffer, buflen);
+	if(rc < 0)
+	{
+		if((errno == ECONNRESET) || (errno == ENOTCONN))
+			throw ConnectionLost("");
+		return 0;
+	}
+	else if(rc == 0)
+	{
+		if(errno != ETIMEDOUT)
+			throw ConnectionLost("");
+	}
 	return rc;
 }
 
