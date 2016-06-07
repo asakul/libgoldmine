@@ -42,6 +42,7 @@ set(goldmine-sources
 		io/common/inproc.cpp
 
 		quotesource/quotesource.cpp
+		quotesource/quotesourceclient.cpp
 	)
 
 if(WIN32)
@@ -71,6 +72,7 @@ set(test-sources
 		tests/inproc_test.cpp
 		tests/message_test.cpp
 		tests/quotesource_test.cpp
+		tests/quotesourceclient_test.cpp
 	)
 
 add_executable(libgoldmine-tests tests/tests.cpp
