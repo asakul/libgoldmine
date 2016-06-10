@@ -161,7 +161,7 @@ void MessageProtocol::readMessage(Message& m)
 		char* ptr = reinterpret_cast<char*>(&frames) + bytesRead;
 		int result = m_impl->line->read(ptr, 4 - bytesRead);
 		if(result <= 0)
-			throw IoException("Timeout or error");
+			throw TimeoutException("Timeout or error");
 		bytesRead += result;
 	}
 
@@ -174,7 +174,7 @@ void MessageProtocol::readMessage(Message& m)
 			char* ptr = reinterpret_cast<char*>(&frameLength) + bytesRead;
 			int result = m_impl->line->read(ptr, 4 - bytesRead);
 			if(result <= 0)
-				throw IoException("Timeout or error");
+				throw TimeoutException("Timeout or error");
 			bytesRead += result;
 		}
 
@@ -186,7 +186,7 @@ void MessageProtocol::readMessage(Message& m)
 			char* ptr = data.data() + bytesRead;
 			int result = m_impl->line->read(ptr, frameLength - bytesRead);
 			if(result <= 0)
-				throw IoException("Timeout or error");
+				throw TimeoutException("Timeout or error");
 			bytesRead += result;
 		}
 

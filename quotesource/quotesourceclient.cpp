@@ -1,6 +1,7 @@
 
 #include "quotesourceclient.h"
 #include "io/message.h"
+#include "exceptions.h"
 
 #include "json/json.h"
 
@@ -13,14 +14,16 @@ namespace goldmine
 
 struct QuoteSourceClient::Impl
 {
-	Impl(io::IoLineManager& m, const std::string& a) : manager(m),
+	Impl(const std::shared_ptr<io::IoLineManager>& m, const std::string& a) : manager(m),
 		address(a),
 		run(false)
 	{
 	}
 
 	std::vector<std::shared_ptr<QuoteSourceClient::Sink>> sinks;
-	io::IoLineManager& manager;
+	std::vector<boost::shared_ptr<QuoteSourceClient::Sink>> boostSinks;
+	std::vector<QuoteSourceClient::Sink*> rawSinks;
+	std::shared_ptr<io::IoLineManager> manager;
 	std::string address;
 	std::shared_ptr<io::IoLine> line;
 	std::thread streamThread;
@@ -29,7 +32,7 @@ struct QuoteSourceClient::Impl
 	void eventLoop(const std::string& streamId)
 	{
 		run = true;
-		line = manager.createClient(address);
+		line = manager->createClient(address);
 		if(line)
 		{
 			int timeout = 200;
@@ -59,19 +62,37 @@ struct QuoteSourceClient::Impl
 			// TODO check
 			while(run)
 			{
-				io::Message incoming;
-				proto.readMessage(incoming);
-				uint32_t messageType = incoming.get<uint32_t>(0);
-				if(messageType == (int)goldmine::MessageType::Data)
+				try
 				{
-					auto ticker = incoming.get<std::string>(1);
-					size_t size = incoming.frame(2).size();
-					const void* ticks = incoming.frame(2).data();
-					const Tick* tick = reinterpret_cast<const Tick*>(ticks);
-					for(const auto& sink : sinks)
+					io::Message incoming;
+					proto.readMessage(incoming);
+					uint32_t messageType = incoming.get<uint32_t>(0);
+					if(messageType == (int)goldmine::MessageType::Data)
 					{
-						sink->incomingTick(ticker, *tick);
+						auto ticker = incoming.get<std::string>(1);
+						size_t size = incoming.frame(2).size();
+						const void* ticks = incoming.frame(2).data();
+						const Tick* tick = reinterpret_cast<const Tick*>(ticks);
+						for(const auto& sink : sinks)
+						{
+							sink->incomingTick(ticker, *tick);
+						}
+						for(const auto& sink : boostSinks)
+						{
+							sink->incomingTick(ticker, *tick);
+						}
+						for(const auto& sink : rawSinks)
+						{
+							sink->incomingTick(ticker, *tick);
+						}
 					}
+				}
+				catch(const io::TimeoutException& ex)
+				{
+					// Timeout, do nothing
+				}
+				catch(const LibGoldmineException& ex)
+				{
 				}
 			}
 		}
@@ -82,7 +103,7 @@ QuoteSourceClient::Sink::~Sink()
 {
 }
 
-QuoteSourceClient::QuoteSourceClient(io::IoLineManager& manager, const std::string& address) :
+QuoteSourceClient::QuoteSourceClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address) :
 	m_impl(new Impl(manager, address))
 {
 }
@@ -108,6 +129,15 @@ void QuoteSourceClient::registerSink(const std::shared_ptr<Sink>& sink)
 	m_impl->sinks.push_back(sink);
 }
 
+void QuoteSourceClient::registerBoostSink(const boost::shared_ptr<Sink>& sink)
+{
+	m_impl->boostSinks.push_back(sink);
+}
+
+void QuoteSourceClient::registerRawSink(Sink* sink)
+{
+	m_impl->rawSinks.push_back(sink);
+}
 
 }
 

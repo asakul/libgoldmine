@@ -177,7 +177,7 @@ namespace io
 		{
 			if(!m_connected)
 				throw ConnectionLost("");
-			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() >= buflen; });
+			m_writeCondition.wait(lock, [&]() { return m_buffer.availableWriteSize() <= buflen; });
 
 			if((m_buffer.availableWriteSize() < buflen) && (!m_connected))
 				throw ConnectionLost("");

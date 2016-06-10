@@ -20,12 +20,12 @@ using namespace io;
 class Client;
 struct QuoteSource::Impl
 {
-	Impl(IoLineManager& m) : manager(m),
+	Impl(const std::shared_ptr<IoLineManager>& m) : manager(m),
 		run(false)
 	{
 	}
 
-	IoLineManager& manager;
+	std::shared_ptr<IoLineManager> manager;
 	std::string endpoint;
 	boost::thread acceptThread;
 	std::atomic<bool> run;
@@ -289,7 +289,7 @@ void Client::eventLoop()
 	}
 }
 
-QuoteSource::QuoteSource(IoLineManager& manager, const std::string& endpoint) : m_impl(new Impl(manager))
+QuoteSource::QuoteSource(const std::shared_ptr<IoLineManager>& manager, const std::string& endpoint) : m_impl(new Impl(manager))
 {
 	m_impl->endpoint = endpoint;
 }
@@ -343,7 +343,7 @@ void QuoteSource::eventLoop()
 {
 	m_impl->run = true;
 
-	auto controlAcceptor = m_impl->manager.createServer(m_impl->endpoint);
+	auto controlAcceptor = m_impl->manager->createServer(m_impl->endpoint);
 
 	while(m_impl->run)
 	{

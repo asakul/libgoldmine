@@ -69,15 +69,15 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 
 TEST_CASE("QuoteSource", "[quotesource]")
 {
-	IoLineManager manager;
-	manager.registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = std::make_shared<IoLineManager>();
+	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
 
 	auto exceptionsReactor = std::make_shared<ExceptionsReactor>();
 	QuoteSource source(manager, "inproc://control-quotesource");
 	source.addReactor(exceptionsReactor);
 	source.start();
 
-	auto control = manager.createClient("inproc://control-quotesource");
+	auto control = manager->createClient("inproc://control-quotesource");
 	int timeout = 100;
 	control->setOption(LineOption::ReceiveTimeout, &timeout);
 	MessageProtocol controlProto(control);

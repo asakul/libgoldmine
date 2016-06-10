@@ -8,6 +8,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
+
+set(Python_ADDITIONAL_VERSIONS 3.5)
+FIND_PACKAGE(PythonInterp)
+FIND_PACKAGE(PythonLibs)
+
 set (Boost_USE_STATIC_LIBS OFF)
 set (Boost_USE_MULTITHREADED ON)
 
@@ -16,7 +21,7 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python3)
 endif(WIN32)
 
 if(WIN32)
@@ -62,6 +67,22 @@ if(WIN32)
 target_link_libraries(goldmine -lws2_32)
 endif(WIN32)
 
+if(Boost_PYTHON3_FOUND)
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+message("Python bindings enabled")
+add_library(pygoldmine SHARED ${goldmine-sources} python/wrappers.cpp)
+target_link_libraries(pygoldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+if(WIN32)
+	target_link_libraries(pygoldmine -lwsock32 -lws2_32)
+endif(WIN32)
+set_target_properties(pygoldmine PROPERTIES PREFIX "")
+
+else(Boost_PYTHON3_FOUND)
+message("Python bindings are NOT enabled")
+endif(Boost_PYTHON3_FOUND)
+
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch
@@ -81,7 +102,7 @@ add_executable(libgoldmine-tests tests/tests.cpp
 
 target_compile_definitions(libgoldmine-tests PRIVATE)
 
-target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
@@ -114,7 +135,7 @@ add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
 
 target_compile_definitions(libgoldmine-tests PRIVATE)
 
-target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${ZMQ_LIBRARIES})
+target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")

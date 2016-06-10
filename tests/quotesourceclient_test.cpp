@@ -28,8 +28,8 @@ public:
 
 TEST_CASE("QuotesourceClient", "[quotesourceclient]")
 {
-	IoLineManager manager;
-	manager.registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = std::make_shared<IoLineManager>();
+	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
 
 	QuoteSourceClient client(manager, "inproc://quotesource");
 	auto sink = std::make_shared<TickSink>();

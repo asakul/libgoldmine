@@ -5,6 +5,7 @@
 #include "io/iolinemanager.h"
 #include "goldmine/data.h"
 
+#include <boost/shared_ptr.hpp>
 #include <memory>
 #include <string>
 
@@ -21,13 +22,15 @@ public:
 		virtual void incomingTick(const std::string& ticker, const Tick& tick) = 0;
 	};
 
-	QuoteSourceClient(io::IoLineManager& manager, const std::string& address);
+	QuoteSourceClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address);
 	virtual ~QuoteSourceClient();
 
 	void startStream(const std::string& streamId);
 	void stop();
 
 	void registerSink(const std::shared_ptr<Sink>& sink);
+	void registerBoostSink(const boost::shared_ptr<Sink>& sink);
+	void registerRawSink(Sink* sink);
 
 private:
 	struct Impl;

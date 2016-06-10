@@ -39,7 +39,7 @@ public:
 public:
 	using Ptr = std::shared_ptr<QuoteSource>;
 
-	QuoteSource(io::IoLineManager& manager, const std::string& endpoint);
+	QuoteSource(const std::shared_ptr<io::IoLineManager>& manager, const std::string& endpoint);
 	virtual ~QuoteSource();
 
 	void addReactor(const Reactor::Ptr& reactor);
