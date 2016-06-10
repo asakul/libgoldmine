@@ -7,7 +7,7 @@
 #include "exceptions.h"
 
 #include "io/common/inproc.h"
-#if defined(UNIX)
+#if defined(_POSIX_VERSION)
 #include "io/posix/io_socket.h"
 #endif
 
@@ -18,7 +18,7 @@ std::shared_ptr<io::IoLineManager> makeIoLineManager()
 {
 	auto manager = std::make_shared<io::IoLineManager>();
 	manager->registerFactory(std::unique_ptr<io::InprocLineFactory>(new io::InprocLineFactory()));
-#if defined(UNIX)
+#if defined(_POSIX_VERSION)
 	manager->registerFactory(std::unique_ptr<io::UnixSocketFactory>(new io::UnixSocketFactory()));
 	manager->registerFactory(std::unique_ptr<io::TcpSocketFactory>(new io::TcpSocketFactory()));
 #endif

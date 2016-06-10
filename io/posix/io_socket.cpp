@@ -77,7 +77,7 @@ void UnixSocket::setOption(LineOption option, void* data)
 		case LineOption::ReceiveTimeout:
 			{
 				int msecs = *(int*)data;
-				int secs = msecs % 1000;
+				int secs = msecs / 1000;
 				int restMsecs = msecs - secs * 1000;
 				struct timeval timeout;
 				timeout.tv_sec = secs;
@@ -91,7 +91,7 @@ void UnixSocket::setOption(LineOption option, void* data)
 		case LineOption::SendTimeout:
 			{
 				int msecs = *(int*)data;
-				int secs = msecs % 1000;
+				int secs = msecs / 1000;
 				int restMsecs = msecs - secs * 1000;
 				struct timeval timeout;
 				timeout.tv_sec = secs;
