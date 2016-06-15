@@ -13,6 +13,10 @@
 
 #include "io/iolinemanager.h"
 
+#ifdef __MINGW32__
+#include "mingw.thread.h"
+#endif
+
 namespace goldmine
 {
 using namespace io;
