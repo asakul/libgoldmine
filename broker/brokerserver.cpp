@@ -162,6 +162,30 @@ struct BrokerServer::Impl : public Broker::Reactor
 							impl->submitOrder(orderObject);
 						}
 					}
+					else if(!root["cancel-order"].isNull())
+					{
+						if(identity.empty())
+						{
+							BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("No identity is set"));
+						}
+						else
+						{
+							int clientAssignedId = root["cancel-order"]["id"].asInt();
+							auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == clientAssignedId;});
+							if(it == clientOrders.end())
+								BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id does not exists: " + std::to_string(clientAssignedId)));
+
+							Json::Value response;
+							response["result"] = "success";
+							Json::FastWriter writer;
+							io::Message outgoing;
+							outgoing << (uint32_t)MessageType::Control;
+							outgoing << writer.write(response);
+
+							proto.sendMessage(outgoing);
+							impl->cancelOrder(*it);
+						}
+					}
 				}
 			}
 		}
@@ -274,6 +298,15 @@ struct BrokerServer::Impl : public Broker::Reactor
 		{
 			if(broker->hasAccount(order->account()))
 				broker->submitOrder(order);
+		}
+	}
+
+	void cancelOrder(const Order::Ptr& order)
+	{
+		for(const auto& broker : brokers)
+		{
+			if(broker->hasAccount(order->account()))
+				broker->cancelOrder(order);
 		}
 	}
 

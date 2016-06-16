@@ -35,6 +35,16 @@ public:
 
 	void cancelOrder(const Order::Ptr& order)
 	{
+		auto it = std::find_if(submittedOrders.begin(), submittedOrders.end(), [&](const Order::Ptr& other) { return order->localId() == other->localId(); });
+		if(it != submittedOrders.end())
+		{
+			order->updateState(Order::State::Cancelled);
+			for(const auto& reactor : reactors)
+			{
+				reactor->orderCallback(order);
+			}
+			submittedOrders.erase(it);
+		}
 	}
 
 	void registerReactor(const std::shared_ptr<Reactor>& reactor)
@@ -328,6 +338,54 @@ TEST_CASE("BrokerServer", "[broker]")
 		REQUIRE(response["result"] == "error");
 	}
 
+	SECTION("Order cancellation")
+	{
+		doIdentityRequest(client);
+
+		{
+			Json::Value order;
+			order["id"] = 1;
+			order["account"] = "TEST_ACCOUNT";
+			order["security"] = "FOOBAR";
+			order["type"] = "limit";
+			order["price"] = 19.74;
+			order["quantity"] = 2;
+			order["operation"] = "buy";
+
+			Json::Value root;
+			root["order"] = order;
+
+			sendControlMessage(root, client);
+
+			Json::Value response;
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["result"] == "success");
+
+			response.clear();
+			receiveControlMessage(response, client);
+		}
+		{
+			Json::Value order;
+			order["id"] = 1;
+			order["account"] = "TEST_ACCOUNT";
+
+			Json::Value root;
+			root["cancel-order"] = order;
+
+			sendControlMessage(root, client);
+
+			Json::Value response;
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["result"] == "success");
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["order"]["new-state"] == "cancelled");
+		}
+	}
 
 	server->stop();
 }
