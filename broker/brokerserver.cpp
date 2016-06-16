@@ -77,7 +77,25 @@ struct BrokerServer::Impl : public Broker::Reactor
 					io::Message incoming;
 					proto.readMessage(incoming);
 
-					handleMessage(incoming, proto);
+					try
+					{
+						handleMessage(incoming, proto);
+					}
+					catch(const LibGoldmineException& e)
+					{
+						Json::Value response;
+						response["result"] = "error";
+						auto errmsg = boost::get_error_info<errinfo_str>(e);
+						if(errmsg)
+							response["reason"] = *errmsg;
+
+						Json::FastWriter writer;
+						io::Message outgoing;
+						outgoing << (uint32_t)MessageType::Control;
+						outgoing << writer.write(response);
+
+						proto.sendMessage(outgoing);
+					}
 
 				}
 				catch(const io::IoException& e)
@@ -120,19 +138,16 @@ struct BrokerServer::Impl : public Broker::Reactor
 					{
 						if(identity.empty())
 						{
-							Json::Value response;
-							response["result"] = "error";
-							response["reason"] = "No identity is set";
-
-							Json::FastWriter writer;
-							io::Message outgoing;
-							outgoing << (uint32_t)MessageType::Control;
-							outgoing << writer.write(response);
-
-							proto.sendMessage(outgoing);
+							BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("No identity is set"));
 						}
 						else
 						{
+							auto orderObject = deserializeOrder(order);
+
+							auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == orderObject->clientAssignedId();});
+							if(it != clientOrders.end())
+								BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id already exists: " + std::to_string(orderObject->clientAssignedId())));
+
 							Json::Value response;
 							response["result"] = "success";
 
@@ -143,10 +158,8 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 							proto.sendMessage(outgoing);
 
-							auto orderObject = deserializeOrder(order);
 							clientOrders.push_back(orderObject);
 							impl->submitOrder(orderObject);
-
 						}
 					}
 				}
@@ -175,7 +188,11 @@ struct BrokerServer::Impl : public Broker::Reactor
 			if(typeString == "market")
 				type = Order::OrderType::Market;
 			else if(typeString == "limit")
+			{
 				type = Order::OrderType::Limit;
+				if(order["price"].isNull())
+					BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("No price specified for limit order"));
+			}
 			else
 				BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Unknown order type specified: " + typeString));
 

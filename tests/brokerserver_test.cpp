@@ -202,6 +202,133 @@ TEST_CASE("BrokerServer", "[broker]")
 		REQUIRE(response["order"]["new-state"] == "submitted");
 	}
 
+	SECTION("Order creation - market order")
+	{
+		doIdentityRequest(client);
+
+		Json::Value order;
+		order["id"] = 1;
+		order["account"] = "TEST_ACCOUNT";
+		order["security"] = "FOOBAR";
+		order["type"] = "market";
+		order["quantity"] = 2;
+		order["operation"] = "sell";
+
+		Json::Value root;
+		root["order"] = order;
+
+		sendControlMessage(root, client);
+
+		Json::Value response;
+		receiveControlMessage(response, client);
+
+		REQUIRE(response["result"] == "success");
+
+		response.clear();
+		receiveControlMessage(response, client);
+
+		REQUIRE(broker->submittedOrders.size() == 1);
+		REQUIRE(broker->submittedOrders.front()->clientAssignedId() == 1);
+		REQUIRE(broker->submittedOrders.front()->account() == "TEST_ACCOUNT");
+		REQUIRE(broker->submittedOrders.front()->security() == "FOOBAR");
+		REQUIRE(broker->submittedOrders.front()->quantity() == 2);
+		REQUIRE(broker->submittedOrders.front()->operation() == Order::Operation::Sell);
+		REQUIRE(broker->submittedOrders.front()->type() == Order::OrderType::Market);
+		REQUIRE(response["order"]["new-state"] == "submitted");
+
+		SECTION("Order creation - duplicated id")
+		{
+			Json::Value order;
+			order["id"] = 1;
+			order["account"] = "TEST_ACCOUNT";
+			order["security"] = "FOOBAR";
+			order["type"] = "market";
+			order["quantity"] = 2;
+			order["operation"] = "buy";
+
+			Json::Value root;
+			root["order"] = order;
+
+			sendControlMessage(root, client);
+
+			Json::Value response;
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["result"] == "error");
+
+		}
+	}
+
+	SECTION("Order creation - invalid order type")
+	{
+		doIdentityRequest(client);
+
+		Json::Value order;
+		order["id"] = 1;
+		order["account"] = "TEST_ACCOUNT";
+		order["security"] = "FOOBAR";
+		order["type"] = "foo";
+		order["quantity"] = 2;
+		order["operation"] = "sell";
+
+		Json::Value root;
+		root["order"] = order;
+
+		sendControlMessage(root, client);
+
+		Json::Value response;
+		receiveControlMessage(response, client);
+
+		REQUIRE(response["result"] == "error");
+	}
+
+	SECTION("Order creation - invalid operation type")
+	{
+		doIdentityRequest(client);
+
+		Json::Value order;
+		order["id"] = 1;
+		order["account"] = "TEST_ACCOUNT";
+		order["security"] = "FOOBAR";
+		order["type"] = "market";
+		order["quantity"] = 2;
+		order["operation"] = "foo";
+
+		Json::Value root;
+		root["order"] = order;
+
+		sendControlMessage(root, client);
+
+		Json::Value response;
+		receiveControlMessage(response, client);
+
+		REQUIRE(response["result"] == "error");
+	}
+
+	SECTION("Order creation - limit order without price")
+	{
+		doIdentityRequest(client);
+
+		Json::Value order;
+		order["id"] = 1;
+		order["account"] = "TEST_ACCOUNT";
+		order["security"] = "FOOBAR";
+		order["type"] = "limit";
+		order["quantity"] = 2;
+		order["operation"] = "buy";
+
+		Json::Value root;
+		root["order"] = order;
+
+		sendControlMessage(root, client);
+
+		Json::Value response;
+		receiveControlMessage(response, client);
+
+		REQUIRE(response["result"] == "error");
+	}
+
+
 	server->stop();
 }
 
