@@ -21,7 +21,7 @@ set(Python_ADDITIONAL_VERSIONS 3.5)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python3)
 endif(WIN32)
 
 if(WIN32)

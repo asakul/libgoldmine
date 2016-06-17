@@ -365,6 +365,7 @@ TEST_CASE("BrokerServer", "[broker]")
 			response.clear();
 			receiveControlMessage(response, client);
 		}
+		SECTION("Existing order")
 		{
 			Json::Value order;
 			order["id"] = 1;
@@ -384,6 +385,23 @@ TEST_CASE("BrokerServer", "[broker]")
 			receiveControlMessage(response, client);
 
 			REQUIRE(response["order"]["new-state"] == "cancelled");
+		}
+
+		SECTION("Not existing order")
+		{
+			Json::Value order;
+			order["id"] = 10;
+			order["account"] = "TEST_ACCOUNT";
+
+			Json::Value root;
+			root["cancel-order"] = order;
+
+			sendControlMessage(root, client);
+
+			Json::Value response;
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["result"] == "error");
 		}
 	}
 
