@@ -9,10 +9,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 
-set(Python_ADDITIONAL_VERSIONS 3.5)
-FIND_PACKAGE(PythonInterp)
-FIND_PACKAGE(PythonLibs)
-
 set (Boost_USE_STATIC_LIBS OFF)
 set (Boost_USE_MULTITHREADED ON)
 
@@ -21,7 +17,11 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python3)
+set(Python_ADDITIONAL_VERSIONS 3.5)
+FIND_PACKAGE(PythonInterp)
+FIND_PACKAGE(PythonLibs)
+
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
 endif(WIN32)
 
 if(WIN32)
@@ -40,6 +40,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mingw-std-threads)
 
 set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
+
+		broker/broker.cpp
+		broker/brokerserver.cpp
 
 		io/iolinemanager.cpp
 		io/message.cpp
@@ -90,6 +93,7 @@ include_directories(
 	)
 
 set(test-sources
+		tests/brokerserver_test.cpp
 		tests/inproc_test.cpp
 		tests/message_test.cpp
 		tests/quotesource_test.cpp

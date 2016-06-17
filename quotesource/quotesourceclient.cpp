@@ -8,6 +8,9 @@
 #include <boost/algorithm/string.hpp>
 
 #include <thread>
+#ifdef __MINGW32__
+#include "mingw.thread.h"
+#endif
 
 namespace goldmine
 {

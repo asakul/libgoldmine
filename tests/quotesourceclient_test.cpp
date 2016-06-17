@@ -7,6 +7,9 @@
 #include "quotesource/quotesource.h"
 
 #include <thread>
+#ifdef __MINGW32__
+#include "mingw.thread.h"
+#endif
 
 using namespace goldmine;
 using namespace goldmine::io;
@@ -25,6 +28,37 @@ public:
 
 	std::vector<std::pair<std::string, Tick>> ticks;
 };
+
+static void sendControlMessage(const Json::Value& root, MessageProtocol& line)
+{
+	Json::FastWriter writer;
+	auto json = writer.write(root);
+
+	Message msg;
+	msg << (uint32_t)goldmine::MessageType::Control;
+	msg << json;
+
+	line.sendMessage(msg);
+}
+
+static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
+{
+	root.clear();
+	Message recvd;
+	line.readMessage(recvd);
+
+	uint32_t incomingMessageType = recvd.get<uint32_t>(0);
+	REQUIRE(incomingMessageType == (int)goldmine::MessageType::Control);
+
+	auto json = recvd.get<std::string>(1);
+	Json::Reader reader;
+	bool parseOk = reader.parse(json, root);
+	if(!parseOk)
+		return false;
+
+	return true;
+}
+
 
 TEST_CASE("QuotesourceClient", "[quotesourceclient]")
 {
