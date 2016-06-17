@@ -29,6 +29,7 @@ Order::Order(int clientAssignedId, const std::string& account, const std::string
 	m_security(security),
 	m_price(price),
 	m_quantity(quantity),
+	m_executedQuantity(0),
 	m_operation(operation),
 	m_type(type),
 	m_state(State::Unsubmitted)

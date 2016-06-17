@@ -7,6 +7,7 @@
 
 #include "exceptions.h"
 
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -31,8 +32,28 @@ static std::string serializeOrderState(Order::State state)
 		return "submitted";
 	case Order::State::Unsubmitted:
 		return "unsubmitted";
+	case Order::State::Error:
+		return "error";
 	}
 	return "unknown";
+}
+
+static std::string serializeExecutionTime(time_t timestamp, int useconds)
+{
+	using namespace boost::posix_time;
+	using namespace boost::gregorian;
+	auto timePoint = from_time_t(timestamp) + microseconds(useconds);
+	char buf[256];
+	snprintf(buf, 256, "%d-%02d-%02d %02d:%02d:%02d.%03lld",
+			(int)timePoint.date().year(),
+			(int)timePoint.date().month(),
+			(int)timePoint.date().day(),
+			(int)timePoint.time_of_day().hours(),
+			(int)timePoint.time_of_day().minutes(),
+			(int)timePoint.time_of_day().seconds(),
+			1000ull * timePoint.time_of_day().ticks() / timePoint.time_of_day().ticks_per_second());
+
+	return std::string(buf);
 }
 
 
@@ -190,6 +211,57 @@ struct BrokerServer::Impl : public Broker::Reactor
 			}
 		}
 
+		void tradeNotification(const Order::Ptr& order, const Trade& trade)
+		{
+			Json::Value tradeJson;
+			tradeJson["order-id"] = order->clientAssignedId();
+			tradeJson["price"] = trade.price.toDouble();
+			tradeJson["quantity"] = trade.quantity;
+			tradeJson["operation"] = trade.operation == Order::Operation::Buy ? "buy" : "sell";
+			tradeJson["account"] = trade.account;
+			tradeJson["security"] = trade.security;
+			tradeJson["execution-time"] = serializeExecutionTime(trade.timestamp, trade.useconds);
+
+			Json::Value root;
+			root["trade"] = tradeJson;
+
+			Json::FastWriter writer;
+			io::Message message;
+			message << (uint32_t)MessageType::Control;
+			message << writer.write(root);
+
+			io::MessageProtocol proto(line);
+			proto.sendMessage(message);
+
+			order->setExecutedQuantity(order->executedQuantity() + trade.quantity);
+
+			if(order->executedQuantity() == order->quantity())
+			{
+				order->updateState(Order::State::Executed);
+			}
+			else if(order->executedQuantity() < order->quantity())
+			{
+				order->updateState(Order::State::PartiallyExecuted);
+			}
+			else
+			{
+				order->updateState(Order::State::Error);
+			}
+
+			orderStateChanged(order);
+		}
+
+		Order::Ptr findOrderById(int id)
+		{
+			auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [=](const Order::Ptr& order)
+					{
+						return order->localId() == id;
+					});
+			if(it == clientOrders.end())
+				return Order::Ptr();
+			return *it;
+		}
+
 		Order::Ptr deserializeOrder(const Json::Value& order)
 		{
 			int id = order["id"].asInt();
@@ -321,8 +393,17 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 	virtual void tradeCallback(const Trade& trade) override
 	{
+		for(const auto& client : clients)
+		{
+			auto order = client->findOrderById(trade.orderId);
+			if(order)
+			{
+				client->tradeNotification(order, trade);
+				break;
+			}
+		}
 	}
-		
+
 	std::string generateNewIdentity()
 	{
 		return boost::uuids::to_string(uuidGenerator());

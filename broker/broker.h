@@ -39,7 +39,8 @@ public:
 		PartiallyExecuted,
 		Executed,
 		Cancelled,
-		Rejected
+		Rejected,
+		Error
 	};
 
 	typedef std::shared_ptr<Order> Ptr;
@@ -56,6 +57,8 @@ public:
 	std::string security() const { return m_security; }
 	double price() const { return m_price; }
 	int quantity() const { return m_quantity; }
+	void setExecutedQuantity(int q) { m_executedQuantity = q; }
+	int executedQuantity() const { return m_executedQuantity; }
 	Operation operation() const { return m_operation; }
 	OrderType type() const { return m_type; }
 
@@ -75,6 +78,7 @@ private:
 	std::string m_security;
 	double m_price;
 	int m_quantity;
+	int m_executedQuantity;
 	Operation m_operation;
 	OrderType m_type;
 
@@ -85,13 +89,13 @@ private:
 
 struct Trade
 {
-	Trade() : orderId(0), price(0), amount(0), operation(Order::Operation::Buy) {}
+	Trade() : orderId(0), price(0), quantity(0), operation(Order::Operation::Buy) {}
 	int orderId;
 	goldmine::decimal_fixed price;
-	int amount;
+	int quantity;
 	Order::Operation operation;
 	std::string account;
-	std::string ticker;
+	std::string security;
 	uint64_t timestamp;
 	uint32_t useconds;
 };

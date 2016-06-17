@@ -78,6 +78,14 @@ public:
 		return std::list<Position>();
 	}
 
+	void provokeTradeCallback(const Trade& trade)
+	{
+		for(const auto& reactor : reactors)
+		{
+			reactor->tradeCallback(trade);
+		}
+	}
+
 	std::vector<Order::Ptr> submittedOrders;
 	std::vector<std::shared_ptr<Reactor>> reactors;
 	std::string account;
@@ -402,6 +410,121 @@ TEST_CASE("BrokerServer", "[broker]")
 			receiveControlMessage(response, client);
 
 			REQUIRE(response["result"] == "error");
+		}
+	}
+
+	SECTION("Trade callback")
+	{
+		doIdentityRequest(client);
+
+		Json::Value order;
+		order["id"] = 1;
+		order["account"] = "TEST_ACCOUNT";
+		order["security"] = "FOOBAR";
+		order["type"] = "limit";
+		order["price"] = 19.73;
+		order["quantity"] = 2;
+		order["operation"] = "buy";
+
+		Json::Value root;
+		root["order"] = order;
+
+		sendControlMessage(root, client);
+
+		Json::Value response;
+		receiveControlMessage(response, client);
+
+		REQUIRE(response["result"] == "success");
+
+		response.clear();
+		receiveControlMessage(response, client);
+		REQUIRE(response["order"]["new-state"] == "submitted");
+
+
+		SECTION("Total execution")
+		{
+			{
+				Trade trade;
+				trade.orderId = broker->submittedOrders.front()->localId();
+				trade.price = 19.73;
+				trade.quantity = 2;
+				trade.operation = Order::Operation::Buy;
+				trade.account = "TEST_ACCOUNT";
+				trade.security = "FOOBAR";
+				trade.timestamp = 0;
+				trade.useconds = 0;
+				broker->provokeTradeCallback(trade);
+			}
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(!response["trade"].isNull());
+			auto trade = response["trade"];
+			REQUIRE(trade["order-id"] == 1);
+			REQUIRE(trade["price"].asDouble() == Approx(19.73));
+			REQUIRE(trade["quantity"] == 2);
+			REQUIRE(trade["operation"] == "buy");
+			REQUIRE(trade["account"] == "TEST_ACCOUNT");
+			REQUIRE(trade["security"] == "FOOBAR");
+			REQUIRE(trade["execution-time"] == "1970-01-01 00:00:00.000");
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["order"]["new-state"] == "executed");
+		}
+
+		SECTION("Partial execution")
+		{
+			{
+				Trade trade;
+				trade.orderId = broker->submittedOrders.front()->localId();
+				trade.price = 19.73;
+				trade.quantity = 1;
+				trade.operation = Order::Operation::Buy;
+				trade.account = "TEST_ACCOUNT";
+				trade.security = "FOOBAR";
+				trade.timestamp = 0;
+				trade.useconds = 0;
+				broker->provokeTradeCallback(trade);
+			}
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(!response["trade"].isNull());
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["order"]["new-state"] == "partially-executed");
+		}
+
+		SECTION("Overexecution")
+		{
+			{
+				Trade trade;
+				trade.orderId = broker->submittedOrders.front()->localId();
+				trade.price = 19.73;
+				trade.quantity = 10;
+				trade.operation = Order::Operation::Buy;
+				trade.account = "TEST_ACCOUNT";
+				trade.security = "FOOBAR";
+				trade.timestamp = 0;
+				trade.useconds = 0;
+				broker->provokeTradeCallback(trade);
+			}
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(!response["trade"].isNull());
+
+			response.clear();
+			receiveControlMessage(response, client);
+
+			REQUIRE(response["order"]["new-state"] == "error");
 		}
 	}
 
