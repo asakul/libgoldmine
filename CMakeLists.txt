@@ -21,7 +21,7 @@ set(Python_ADDITIONAL_VERSIONS 3.5)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python3)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
 endif(WIN32)
 
 if(WIN32)
@@ -42,6 +42,7 @@ set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
 
 		broker/broker.cpp
+		broker/brokerclient.cpp
 		broker/brokerserver.cpp
 
 		io/iolinemanager.cpp
@@ -70,7 +71,7 @@ if(WIN32)
 target_link_libraries(goldmine -lws2_32)
 endif(WIN32)
 
-if(Boost_PYTHON3_FOUND)
+if(Boost_PYTHON_FOUND)
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 
@@ -82,9 +83,9 @@ if(WIN32)
 endif(WIN32)
 set_target_properties(pygoldmine PROPERTIES PREFIX "")
 
-else(Boost_PYTHON3_FOUND)
+else(Boost_PYTHON_FOUND)
 message("Python bindings are NOT enabled")
-endif(Boost_PYTHON3_FOUND)
+endif(Boost_PYTHON_FOUND)
 
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
@@ -93,6 +94,7 @@ include_directories(
 	)
 
 set(test-sources
+		tests/brokerclient_test.cpp
 		tests/brokerserver_test.cpp
 		tests/inproc_test.cpp
 		tests/message_test.cpp
