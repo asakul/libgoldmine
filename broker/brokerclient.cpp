@@ -5,6 +5,8 @@
 #include "io/ioline.h"
 #include "io/message.h"
 
+#include "exceptions.h"
+
 #include "json/json.h"
 
 #include <boost/thread.hpp>
@@ -175,16 +177,50 @@ struct BrokerClient::Impl
 		Json::Reader reader;
 		Json::Value root;
 		reader.parse(json, root);
-		int id = root["order"]["id"].asInt();
-
-		auto it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
-		if(it != orders.end())
+		if(!root["order"].isNull())
 		{
-			for(const auto& reactor : reactors)
+			int id = root["order"]["id"].asInt();
+
+			auto it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
+			if(it != orders.end())
 			{
-				reactor->orderCallback(*it);
+				for(const auto& reactor : reactors)
+				{
+					reactor->orderCallback(*it);
+				}
 			}
 		}
+		else if(!root["trade"].isNull())
+		{
+			auto trade = deserializeTrade(root["trade"]);
+			for(const auto& reactor : reactors)
+			{
+				reactor->tradeCallback(trade);
+			}
+		}
+	}
+
+	Trade deserializeTrade(const Json::Value& json)
+	{
+		Trade trade;
+		trade.orderId = json["order-id"].asInt();
+		trade.price = json["price"].asDouble();
+		trade.quantity = json["quantity"].asInt();
+		auto opString = json["operation"].asString();
+		if(opString == "buy")
+			trade.operation = Order::Operation::Buy;
+		else if(opString == "sell")
+			trade.operation = Order::Operation::Sell;
+		else
+			BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Invalid operation specified: " + opString));
+
+		trade.account = json["account"].asString();
+		trade.security = json["security"].asString();
+
+		trade.timestamp = 0;
+		trade.useconds = 0;
+
+		return trade;
 	}
 
 	std::string id;

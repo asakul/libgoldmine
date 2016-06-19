@@ -28,9 +28,11 @@ public:
 
 	virtual void tradeCallback(const Trade& trade) override
 	{
+		trades.push_back(trade);
 	}
 
 	std::vector<Order::Ptr> orders;
+	std::vector<Trade> trades;
 };
 
 static void sendControlMessage(const Json::Value& root, MessageProtocol& line)
@@ -164,6 +166,34 @@ TEST_CASE("BrokerClient", "[broker]")
 			REQUIRE(reactor->orders.front()->clientAssignedId() == 1);
 			REQUIRE(reactor->orders.front()->account() == "TEST_ACCOUNT");
 			REQUIRE(reactor->orders.front()->security() == "FOOBAR");
+
+			SECTION("Trade notification")
+			{
+				Json::Value tradeJson;
+				tradeJson["order-id"] = 1;
+				tradeJson["price"] = 19.74;
+				tradeJson["quantity"] = 2;
+				tradeJson["operation"] = "buy";
+				tradeJson["account"] = "TEST_ACCOUNT";
+				tradeJson["security"] = "FOOBAR";
+				tradeJson["execution-time"] = "1970-01-01 00:00:00.000";
+				Json::Value root;
+				root["trade"] = tradeJson;
+				sendControlMessage(root, proto);
+
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+
+				auto trade = reactor->trades.front();
+
+				REQUIRE(trade.orderId == 1);
+				REQUIRE(trade.price == Approx(19.74));
+				REQUIRE(trade.quantity == 2);
+				REQUIRE(trade.operation == Order::Operation::Buy);
+				REQUIRE(trade.account == "TEST_ACCOUNT");
+				REQUIRE(trade.security == "FOOBAR");
+				REQUIRE(trade.timestamp == 0);
+				REQUIRE(trade.useconds == 0);
+			}
 		}
 	}
 
