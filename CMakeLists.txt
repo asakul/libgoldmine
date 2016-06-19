@@ -94,8 +94,6 @@ include_directories(
 	)
 
 set(test-sources
-		tests/brokerclient_test.cpp
-		tests/brokerserver_test.cpp
 		tests/inproc_test.cpp
 		tests/message_test.cpp
 		tests/quotesource_test.cpp
@@ -120,6 +118,8 @@ endif(WIN32)
 set(tests-integration-sources
 	tests-integration/inproc_integration_test.cpp
 	tests-integration/messageprotocol_test.cpp
+	tests-integration/brokerclient_test.cpp
+	tests-integration/brokerserver_test.cpp
 	)
 
 if(UNIX)
