@@ -91,7 +91,7 @@ struct Trade
 {
 	Trade() : orderId(0), price(0), quantity(0), operation(Order::Operation::Buy) {}
 	int orderId;
-	goldmine::decimal_fixed price;
+	double price;
 	int quantity;
 	Order::Operation operation;
 	std::string account;

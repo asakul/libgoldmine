@@ -215,7 +215,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 		{
 			Json::Value tradeJson;
 			tradeJson["order-id"] = order->clientAssignedId();
-			tradeJson["price"] = trade.price.toDouble();
+			tradeJson["price"] = trade.price;
 			tradeJson["quantity"] = trade.quantity;
 			tradeJson["operation"] = trade.operation == Order::Operation::Buy ? "buy" : "sell";
 			tradeJson["account"] = trade.account;
