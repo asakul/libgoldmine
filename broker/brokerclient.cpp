@@ -127,50 +127,60 @@ struct BrokerClient::Impl
 	void eventLoop()
 	{
 		run = true;
-		line = manager->createClient(address);
-		int timeout = 100;
-		line->setOption(io::LineOption::ReceiveTimeout, &timeout);
-		io::MessageProtocol proto(line);
-
-		if(id.empty())
-		{
-			{
-				Json::Value request;
-				request["command"] = "get-identity";
-
-				Json::FastWriter writer;
-				io::Message msg;
-				msg << (uint32_t)MessageType::Control;
-				msg << writer.write(request);
-
-				proto.sendMessage(msg);
-			}
-
-			{
-				io::Message msg;
-				proto.readMessage(msg);
-
-				Json::Reader reader;
-				auto json = msg.get<std::string>(1);
-				Json::Value root;
-				reader.parse(json, root);
-
-				id = root["identity"].asString();
-			}
-		}
-
 		while(run)
 		{
-			try
+			line = manager->createClient(address);
+			if(line)
 			{
-				io::Message inMessage;
-				proto.readMessage(inMessage);
+				int timeout = 100;
+				line->setOption(io::LineOption::ReceiveTimeout, &timeout);
+				io::MessageProtocol proto(line);
 
-				handleMessage(inMessage);
+				if(id.empty())
+				{
+					{
+						Json::Value request;
+						request["command"] = "get-identity";
+
+						Json::FastWriter writer;
+						io::Message msg;
+						msg << (uint32_t)MessageType::Control;
+						msg << writer.write(request);
+
+						proto.sendMessage(msg);
+					}
+
+					{
+						io::Message msg;
+						proto.readMessage(msg);
+
+						Json::Reader reader;
+						auto json = msg.get<std::string>(1);
+						Json::Value root;
+						reader.parse(json, root);
+
+						id = root["identity"].asString();
+					}
+				}
+
+				while(run)
+				{
+					try
+					{
+						io::Message inMessage;
+						proto.readMessage(inMessage);
+
+						handleMessage(inMessage);
+					}
+					catch(const io::TimeoutException& e)
+					{
+						// Ignore timeout
+					}
+				}
 			}
-			catch(const io::TimeoutException& e)
+			else
 			{
-				// Ignore timeout
+				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}
 	}

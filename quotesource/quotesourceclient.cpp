@@ -35,68 +35,75 @@ struct QuoteSourceClient::Impl
 	void eventLoop(const std::string& streamId)
 	{
 		run = true;
-		line = manager->createClient(address);
-		if(line)
+		while(run)
 		{
-			int timeout = 200;
-			line->setOption(io::LineOption::ReceiveTimeout, &timeout);
-			io::MessageProtocol proto(line);
-			io::Message msg;
-			msg << (uint32_t)MessageType::Control;
-
-			Json::Value root;
-			root["command"] = "start-stream";
-			std::vector<std::string> tickers;
-			boost::split(tickers, streamId, boost::is_any_of(","));
-			Json::Value tickersValue(Json::arrayValue);
-			for(const auto& ticker : tickers)
+			line = manager->createClient(address);
+			if(line)
 			{
-				tickersValue.append(ticker);
-			}
-			root["tickers"] = tickersValue;
-			Json::FastWriter writer;
-			msg << writer.write(root);
-			
-			proto.sendMessage(msg);
+				int timeout = 200;
+				line->setOption(io::LineOption::ReceiveTimeout, &timeout);
+				io::MessageProtocol proto(line);
+				io::Message msg;
+				msg << (uint32_t)MessageType::Control;
 
-			io::Message response;
-			proto.readMessage(response);
-
-			// TODO check
-			while(run)
-			{
-				try
+				Json::Value root;
+				root["command"] = "start-stream";
+				std::vector<std::string> tickers;
+				boost::split(tickers, streamId, boost::is_any_of(","));
+				Json::Value tickersValue(Json::arrayValue);
+				for(const auto& ticker : tickers)
 				{
-					io::Message incoming;
-					proto.readMessage(incoming);
-					uint32_t messageType = incoming.get<uint32_t>(0);
-					if(messageType == (int)goldmine::MessageType::Data)
+					tickersValue.append(ticker);
+				}
+				root["tickers"] = tickersValue;
+				Json::FastWriter writer;
+				msg << writer.write(root);
+
+				proto.sendMessage(msg);
+
+				io::Message response;
+				proto.readMessage(response);
+
+				// TODO check
+				while(run)
+				{
+					try
 					{
-						auto ticker = incoming.get<std::string>(1);
-						size_t size = incoming.frame(2).size();
-						const void* ticks = incoming.frame(2).data();
-						const Tick* tick = reinterpret_cast<const Tick*>(ticks);
-						for(const auto& sink : sinks)
+						io::Message incoming;
+						proto.readMessage(incoming);
+						uint32_t messageType = incoming.get<uint32_t>(0);
+						if(messageType == (int)goldmine::MessageType::Data)
 						{
-							sink->incomingTick(ticker, *tick);
-						}
-						for(const auto& sink : boostSinks)
-						{
-							sink->incomingTick(ticker, *tick);
-						}
-						for(const auto& sink : rawSinks)
-						{
-							sink->incomingTick(ticker, *tick);
+							auto ticker = incoming.get<std::string>(1);
+							size_t size = incoming.frame(2).size();
+							const void* ticks = incoming.frame(2).data();
+							const Tick* tick = reinterpret_cast<const Tick*>(ticks);
+							for(const auto& sink : sinks)
+							{
+								sink->incomingTick(ticker, *tick);
+							}
+							for(const auto& sink : boostSinks)
+							{
+								sink->incomingTick(ticker, *tick);
+							}
+							for(const auto& sink : rawSinks)
+							{
+								sink->incomingTick(ticker, *tick);
+							}
 						}
 					}
+					catch(const io::TimeoutException& ex)
+					{
+						// Timeout, do nothing
+					}
+					catch(const LibGoldmineException& ex)
+					{
+					}
 				}
-				catch(const io::TimeoutException& ex)
-				{
-					// Timeout, do nothing
-				}
-				catch(const LibGoldmineException& ex)
-				{
-				}
+			}
+			else
+			{
+				std::this_thread::sleep_for(std::chrono::seconds(5));
 			}
 		}
 	}
