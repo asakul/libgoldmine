@@ -43,7 +43,7 @@ void UnixSocket::connect()
 
 	int rc = ::connect(m_socket, &serverName, strlen(serverName.sa_data) + sizeof(serverName.sa_family));
 	if(rc < 0)
-		throw IoException(std::string("Unable to bind socket: " + std::to_string(rc)));
+		throw IoException(std::string("Unable to connect to socket: " + std::to_string(rc) + "/" + std::to_string(errno)));
 }
 
 

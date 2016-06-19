@@ -91,6 +91,7 @@ static void checkConnectionLoss(const std::shared_ptr<IoLineManager>& manager, c
 
 
 	std::thread clientThread([&]() {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			auto client = manager->createClient(endpoint);
 			});
 
