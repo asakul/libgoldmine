@@ -10,9 +10,13 @@
 #include "json/json.h"
 
 #include <boost/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace goldmine
 {
+
+using namespace boost::posix_time;
+using namespace boost::gregorian;
 
 std::string serializeOrderType(Order::OrderType t)
 {
@@ -217,8 +221,16 @@ struct BrokerClient::Impl
 		trade.account = json["account"].asString();
 		trade.security = json["security"].asString();
 
-		trade.timestamp = 0;
-		trade.useconds = 0;
+		int year, month, day, hour, minute, second, msec;
+
+		sscanf(json["execution-time"].asString().c_str(), "%d-%d-%d %d:%d:%d.%d",
+				&year, &month, &day,
+				&hour, &minute, &second, &msec);
+
+		ptime t(date(year, month, day), time_duration(hour, minute, second));
+
+		trade.timestamp = (t - ptime(date(1970, 1, 1), time_duration(0, 0, 0, 0))).total_seconds();
+		trade.useconds = msec * 1000;
 
 		return trade;
 	}
