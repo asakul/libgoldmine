@@ -307,7 +307,7 @@ std::shared_ptr<IoLine> TcpSocketAcceptor::waitConnection(const std::chrono::mil
 	int newsock = accept(m_socket, &addr, &clen);
 	if(newsock > 0)
 	{
-		return std::make_shared<UnixSocket>(newsock, "");
+		return std::make_shared<TcpSocket>(newsock, "");
 	}
 	return std::shared_ptr<IoLine>();
 }
