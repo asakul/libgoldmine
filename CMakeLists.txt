@@ -17,7 +17,7 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-set(Python_ADDITIONAL_VERSIONS 3.5)
+set(Python_ADDITIONAL_VERSIONS 2.7)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
@@ -65,7 +65,7 @@ elseif(UNIX)
 endif(WIN32)
 
 add_library(goldmine SHARED ${goldmine-sources})
-target_link_libraries(goldmine ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(goldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 if(WIN32)
 target_link_libraries(goldmine -lws2_32)
