@@ -1,3 +1,6 @@
 [submodule "3rdparty/cppzmq"]
 	path = 3rdparty/cppzmq
 	url = https://github.com/zeromq/cppzmq.git
+[submodule "3rdparty/mingw-std-threads"]
+	path = 3rdparty/mingw-std-threads
+	url = git://github.com/meganz/mingw-std-threads
