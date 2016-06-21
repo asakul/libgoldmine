@@ -1,8 +1,8 @@
 
 #include "brokerserver.h"
 
-#include "io/iolinemanager.h"
-#include "io/message.h"
+#include "cppio/iolinemanager.h"
+#include "cppio/message.h"
 #include "json/json.h"
 
 #include "exceptions.h"
@@ -64,7 +64,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 	public:
 		using Ptr = std::shared_ptr<Client>;
 
-		Client(const std::shared_ptr<io::IoLine>& ioLine, Impl* i) : line(ioLine),
+		Client(const std::shared_ptr<cppio::IoLine>& ioLine, Impl* i) : line(ioLine),
 			impl(i),
 			run(false)
 		{
@@ -89,13 +89,13 @@ struct BrokerServer::Impl : public Broker::Reactor
 		void eventLoop()
 		{
 			run = true;
-			io::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line);
 
 			while(run)
 			{
 				try
 				{
-					io::Message incoming;
+					cppio::Message incoming;
 					proto.readMessage(incoming);
 
 					try
@@ -111,7 +111,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 							response["reason"] = *errmsg;
 
 						Json::FastWriter writer;
-						io::Message outgoing;
+						cppio::Message outgoing;
 						outgoing << (uint32_t)MessageType::Control;
 						outgoing << writer.write(response);
 
@@ -119,13 +119,13 @@ struct BrokerServer::Impl : public Broker::Reactor
 					}
 
 				}
-				catch(const io::IoException& e)
+				catch(const cppio::IoException& e)
 				{
 				}
 			}
 		}
 
-		void handleMessage(const io::Message& incoming, io::MessageProtocol& proto)
+		void handleMessage(const cppio::Message& incoming, cppio::MessageProtocol& proto)
 		{
 			int messageType = incoming.get<uint32_t>(0);
 			if(messageType == (int)MessageType::Control)
@@ -145,7 +145,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 						Json::Value response;
 						response["identity"] = identity;
 						Json::FastWriter writer;
-						io::Message outgoing;
+						cppio::Message outgoing;
 						outgoing << (uint32_t)MessageType::Control;
 						outgoing << writer.write(response);
 
@@ -173,7 +173,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 							response["result"] = "success";
 
 							Json::FastWriter writer;
-							io::Message outgoing;
+							cppio::Message outgoing;
 							outgoing << (uint32_t)MessageType::Control;
 							outgoing << writer.write(response);
 
@@ -199,7 +199,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 							Json::Value response;
 							response["result"] = "success";
 							Json::FastWriter writer;
-							io::Message outgoing;
+							cppio::Message outgoing;
 							outgoing << (uint32_t)MessageType::Control;
 							outgoing << writer.write(response);
 
@@ -226,11 +226,11 @@ struct BrokerServer::Impl : public Broker::Reactor
 			root["trade"] = tradeJson;
 
 			Json::FastWriter writer;
-			io::Message message;
+			cppio::Message message;
 			message << (uint32_t)MessageType::Control;
 			message << writer.write(root);
 
-			io::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line);
 			proto.sendMessage(message);
 
 			order->setExecutedQuantity(order->executedQuantity() + trade.quantity);
@@ -309,17 +309,17 @@ struct BrokerServer::Impl : public Broker::Reactor
 			root["order"] = orderJson;
 
 			Json::FastWriter writer;
-			io::Message message;
+			cppio::Message message;
 			message << (uint32_t)MessageType::Control;
 			message << writer.write(root);
 
-			io::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line);
 			proto.sendMessage(message);
 		}
 
 
 	private:
-		std::shared_ptr<io::IoLine> line;
+		std::shared_ptr<cppio::IoLine> line;
 		std::vector<Order::Ptr> clientOrders;
 		Impl* impl;
 		boost::thread thread;
@@ -327,7 +327,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 		std::string identity;
 	};
 
-	Impl(const std::shared_ptr<io::IoLineManager>& m,
+	Impl(const std::shared_ptr<cppio::IoLineManager>& m,
 			const std::string& ep) :
 		manager(m), endpoint(ep),
 		run(false)
@@ -339,7 +339,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 	}
 
 	std::vector<Broker::Ptr> brokers;
-	std::shared_ptr<io::IoLineManager> manager;
+	std::shared_ptr<cppio::IoLineManager> manager;
 	std::string endpoint;
 	boost::thread mainThread;
 	bool run;
@@ -356,7 +356,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 			if(line)
 			{
 				int timeout = 200;
-				line->setOption(io::LineOption::ReceiveTimeout, &timeout);
+				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
 				auto client = std::make_shared<Client>(line, this);
 				client->start();
 				clients.push_back(client);
@@ -410,7 +410,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 	}
 };
 
-BrokerServer::BrokerServer(const std::shared_ptr<io::IoLineManager>& manager, const std::string& endpoint) :
+BrokerServer::BrokerServer(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& endpoint) :
 	m_impl(new Impl(manager, endpoint))
 {
 }

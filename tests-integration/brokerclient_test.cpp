@@ -4,15 +4,14 @@
 #include "broker/brokerclient.h"
 
 #include "json/json.h"
-#include "io/message.h"
-#include "io/ioline.h"
-#include "io/common/inproc.h"
-#include "io/iolinemanager.h"
+#include "cppio/message.h"
+#include "cppio/ioline.h"
+#include "cppio/iolinemanager.h"
 
 #include <boost/thread.hpp>
 
 using namespace goldmine;
-using namespace goldmine::io;
+using namespace cppio;
 
 class TestReactor : public BrokerClient::Reactor
 {
@@ -67,8 +66,7 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 
 TEST_CASE("BrokerClient", "[broker]")
 {
-	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = createLineManager();
 
 	auto client = std::make_shared<BrokerClient>(manager, "inproc://brokerclient");
 	auto reactor = std::make_shared<TestReactor>();

@@ -8,13 +8,12 @@
 #include "goldmine/data.h"
 
 #include "json/json.h"
-#include "io/message.h"
-#include "io/ioline.h"
-#include "io/common/inproc.h"
-#include "io/iolinemanager.h"
+#include "cppio/message.h"
+#include "cppio/ioline.h"
+#include "cppio/iolinemanager.h"
 
 using namespace goldmine;
-using namespace goldmine::io;
+using namespace cppio;
 
 class ExceptionsReactor : public QuoteSource::Reactor
 {
@@ -69,8 +68,7 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 
 TEST_CASE("QuoteSource", "[quotesource]")
 {
-	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = createLineManager();
 
 	auto exceptionsReactor = std::make_shared<ExceptionsReactor>();
 	QuoteSource source(manager, "inproc://control-quotesource");

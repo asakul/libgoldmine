@@ -4,7 +4,7 @@
 
 #include "broker.h"
 
-#include "io/iolinemanager.h"
+#include "cppio/iolinemanager.h"
 
 #include <memory>
 
@@ -16,7 +16,7 @@ class BrokerServer
 public:
 	using Ptr = std::shared_ptr<BrokerServer>;
 
-	BrokerServer(const std::shared_ptr<io::IoLineManager>& manager, const std::string& endpoint);
+	BrokerServer(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& endpoint);
 	virtual ~BrokerServer();
 
 	void registerBroker(const Broker::Ptr& broker);

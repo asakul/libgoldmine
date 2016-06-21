@@ -10,8 +10,8 @@
 #include "exceptions.h"
 
 #include "json/json.h"
-#include "io/message.h"
-#include "io/iolinemanager.h"
+#include "cppio/message.h"
+#include "cppio/iolinemanager.h"
 
 #include <boost/thread.hpp>
 
@@ -39,7 +39,7 @@ public:
 public:
 	using Ptr = std::shared_ptr<QuoteSource>;
 
-	QuoteSource(const std::shared_ptr<io::IoLineManager>& manager, const std::string& endpoint);
+	QuoteSource(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& endpoint);
 	virtual ~QuoteSource();
 
 	void addReactor(const Reactor::Ptr& reactor);

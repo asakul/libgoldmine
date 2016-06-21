@@ -4,13 +4,12 @@
 #include "broker/brokerserver.h"
 
 #include "json/json.h"
-#include "io/message.h"
-#include "io/ioline.h"
-#include "io/common/inproc.h"
-#include "io/iolinemanager.h"
+#include "cppio/message.h"
+#include "cppio/ioline.h"
+#include "cppio/iolinemanager.h"
 
 using namespace goldmine;
-using namespace goldmine::io;
+using namespace cppio;
 
 class TestBroker : public Broker
 {
@@ -134,8 +133,7 @@ static void doIdentityRequest(MessageProtocol& client)
 
 TEST_CASE("BrokerServer", "[broker]")
 {
-	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = createLineManager();
 
 	auto server = std::make_shared<BrokerServer>(manager, "inproc://brokerserver");
 	auto broker = std::make_shared<TestBroker>("TEST_ACCOUNT");

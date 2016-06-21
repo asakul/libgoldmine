@@ -4,22 +4,16 @@
 
 #include "quotesource.h"
 
-#include "io/iolinemanager.h"
-
 #include <atomic>
 #include <functional>
 #include <unordered_set>
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include "io/iolinemanager.h"
-
-#ifdef __MINGW32__
-#include "mingw.thread.h"
-#endif
+#include "cppio/iolinemanager.h"
 
 namespace goldmine
 {
-using namespace io;
+using namespace cppio;
 
 class Client;
 struct QuoteSource::Impl

@@ -4,7 +4,7 @@
 
 #include "broker.h"
 
-#include "io/iolinemanager.h"
+#include "cppio/iolinemanager.h"
 
 #include <memory>
 #include <string>
@@ -27,7 +27,7 @@ public:
 
 	using Ptr = std::shared_ptr<BrokerClient>;
 
-	BrokerClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address);
+	BrokerClient(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& address);
 	virtual ~BrokerClient();
 
 	void registerReactor(const Reactor::Ptr& reactor);

@@ -1,23 +1,20 @@
 
 #include "quotesourceclient.h"
-#include "io/message.h"
+#include "cppio/message.h"
 #include "exceptions.h"
 
 #include "json/json.h"
 
 #include <boost/algorithm/string.hpp>
 
-#include <thread>
-#ifdef __MINGW32__
-#include "mingw.thread.h"
-#endif
+#include <boost/thread.hpp>
 
 namespace goldmine
 {
 
 struct QuoteSourceClient::Impl
 {
-	Impl(const std::shared_ptr<io::IoLineManager>& m, const std::string& a) : manager(m),
+	Impl(const std::shared_ptr<cppio::IoLineManager>& m, const std::string& a) : manager(m),
 		address(a),
 		run(false)
 	{
@@ -26,10 +23,10 @@ struct QuoteSourceClient::Impl
 	std::vector<std::shared_ptr<QuoteSourceClient::Sink>> sinks;
 	std::vector<boost::shared_ptr<QuoteSourceClient::Sink>> boostSinks;
 	std::vector<QuoteSourceClient::Sink*> rawSinks;
-	std::shared_ptr<io::IoLineManager> manager;
+	std::shared_ptr<cppio::IoLineManager> manager;
 	std::string address;
-	std::shared_ptr<io::IoLine> line;
-	std::thread streamThread;
+	std::shared_ptr<cppio::IoLine> line;
+	boost::thread streamThread;
 	bool run;
 
 	void eventLoop(const std::string& streamId)
@@ -41,9 +38,9 @@ struct QuoteSourceClient::Impl
 			if(line)
 			{
 				int timeout = 200;
-				line->setOption(io::LineOption::ReceiveTimeout, &timeout);
-				io::MessageProtocol proto(line);
-				io::Message msg;
+				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+				cppio::MessageProtocol proto(line);
+				cppio::Message msg;
 				msg << (uint32_t)MessageType::Control;
 
 				Json::Value root;
@@ -61,7 +58,7 @@ struct QuoteSourceClient::Impl
 
 				proto.sendMessage(msg);
 
-				io::Message response;
+				cppio::Message response;
 				proto.readMessage(response);
 
 				// TODO check
@@ -69,7 +66,7 @@ struct QuoteSourceClient::Impl
 				{
 					try
 					{
-						io::Message incoming;
+						cppio::Message incoming;
 						proto.readMessage(incoming);
 						uint32_t messageType = incoming.get<uint32_t>(0);
 						if(messageType == (int)goldmine::MessageType::Data)
@@ -92,7 +89,7 @@ struct QuoteSourceClient::Impl
 							}
 						}
 					}
-					catch(const io::TimeoutException& ex)
+					catch(const cppio::TimeoutException& ex)
 					{
 						// Timeout, do nothing
 					}
@@ -103,7 +100,7 @@ struct QuoteSourceClient::Impl
 			}
 			else
 			{
-				std::this_thread::sleep_for(std::chrono::seconds(5));
+				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}
 	}
@@ -113,7 +110,7 @@ QuoteSourceClient::Sink::~Sink()
 {
 }
 
-QuoteSourceClient::QuoteSourceClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address) :
+QuoteSourceClient::QuoteSourceClient(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& address) :
 	m_impl(new Impl(manager, address))
 {
 }
@@ -124,7 +121,7 @@ QuoteSourceClient::~QuoteSourceClient()
 
 void QuoteSourceClient::startStream(const std::string& streamId)
 {
-	m_impl->streamThread = std::thread(std::bind(&Impl::eventLoop, m_impl.get(), streamId));
+	m_impl->streamThread = boost::thread(std::bind(&Impl::eventLoop, m_impl.get(), streamId));
 }
 
 void QuoteSourceClient::stop()

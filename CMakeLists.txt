@@ -36,7 +36,6 @@ include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mingw-std-threads)
 
 set(goldmine-sources
 		${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/jsoncpp/jsoncpp.cpp
@@ -45,27 +44,12 @@ set(goldmine-sources
 		broker/brokerclient.cpp
 		broker/brokerserver.cpp
 
-		io/iolinemanager.cpp
-		io/message.cpp
-
-		io/common/inproc.cpp
-
 		quotesource/quotesource.cpp
 		quotesource/quotesourceclient.cpp
 	)
 
-if(WIN32)
-	list(APPEND goldmine-sources
-		io/win32/win_socket.cpp
-		io/win32/pipes.cpp
-		)
-elseif(UNIX)
-	list(APPEND goldmine-sources
-		io/posix/io_socket.cpp)
-endif(WIN32)
-
 add_library(goldmine SHARED ${goldmine-sources})
-target_link_libraries(goldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(goldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio)
 
 if(WIN32)
 target_link_libraries(goldmine -lws2_32)
@@ -77,7 +61,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 message("Python bindings enabled")
 add_library(pygoldmine SHARED ${goldmine-sources} python/wrappers.cpp)
-target_link_libraries(pygoldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(pygoldmine ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio)
 if(WIN32)
 	target_link_libraries(pygoldmine -lwsock32 -lws2_32)
 endif(WIN32)
@@ -88,14 +72,13 @@ message("Python bindings are NOT enabled")
 endif(Boost_PYTHON_FOUND)
 
 include_directories(
+	${CMAKE_CURRENT_SOURCE_DIR}/../libcppio/include
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
 	${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/catch
 	${CMAKE_CURRENT_BINARY_DIR}
 	)
 
 set(test-sources
-		tests/inproc_test.cpp
-		tests/message_test.cpp
 		tests/quotesource_test.cpp
 		tests/quotesourceclient_test.cpp
 	)
@@ -106,7 +89,7 @@ add_executable(libgoldmine-tests tests/tests.cpp
 
 target_compile_definitions(libgoldmine-tests PRIVATE)
 
-target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(libgoldmine-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio)
 
 set_target_properties(libgoldmine-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
@@ -116,24 +99,9 @@ target_link_libraries(libgoldmine-tests -lws2_32)
 endif(WIN32)
 
 set(tests-integration-sources
-	tests-integration/inproc_integration_test.cpp
-	tests-integration/messageprotocol_test.cpp
 	tests-integration/brokerclient_test.cpp
 	tests-integration/brokerserver_test.cpp
 	)
-
-if(UNIX)
-	list(APPEND tests-integration-sources
-		tests-integration/unixsocket_test.cpp
-		)
-endif(UNIX)
-
-if(WIN32)
-	list(APPEND tests-integration-sources
-		tests-integration/winsocket_test.cpp
-		tests-integration/pipes_test.cpp
-		)
-endif(WIN32)
 
 add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
 	${tests-integration-sources}
@@ -141,7 +109,7 @@ add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
 
 target_compile_definitions(libgoldmine-tests PRIVATE)
 
-target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio)
 
 set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
 set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")

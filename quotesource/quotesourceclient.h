@@ -2,7 +2,7 @@
 #ifndef QUOTESOURCECLIENT_H
 #define QUOTESOURCECLIENT_H
 
-#include "io/iolinemanager.h"
+#include "cppio/iolinemanager.h"
 #include "goldmine/data.h"
 
 #include <boost/shared_ptr.hpp>
@@ -22,7 +22,7 @@ public:
 		virtual void incomingTick(const std::string& ticker, const Tick& tick) = 0;
 	};
 
-	QuoteSourceClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address);
+	QuoteSourceClient(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& address);
 	virtual ~QuoteSourceClient();
 
 	void startStream(const std::string& streamId);

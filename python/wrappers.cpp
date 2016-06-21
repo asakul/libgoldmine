@@ -3,26 +3,15 @@
 #include <boost/shared_ptr.hpp>
 #include "quotesource/quotesource.h"
 #include "quotesource/quotesourceclient.h"
-#include "io/iolinemanager.h"
+#include "cppio/iolinemanager.h"
 #include "exceptions.h"
-
-#include "io/common/inproc.h"
-#if defined(_POSIX_VERSION)
-#include "io/posix/io_socket.h"
-#endif
 
 using namespace boost::python;
 using namespace goldmine;
 
-std::shared_ptr<io::IoLineManager> makeIoLineManager()
+std::shared_ptr<cppio::IoLineManager> makeIoLineManager()
 {
-	auto manager = std::make_shared<io::IoLineManager>();
-	manager->registerFactory(std::unique_ptr<io::InprocLineFactory>(new io::InprocLineFactory()));
-#if defined(_POSIX_VERSION)
-	manager->registerFactory(std::unique_ptr<io::UnixSocketFactory>(new io::UnixSocketFactory()));
-	manager->registerFactory(std::unique_ptr<io::TcpSocketFactory>(new io::TcpSocketFactory()));
-#endif
-	return manager;
+	return cppio::createLineManager();
 }
 
 BOOST_PYTHON_MODULE(pygoldmine)
@@ -37,9 +26,9 @@ BOOST_PYTHON_MODULE(pygoldmine)
 	register_ptr_to_python<std::shared_ptr<QuoteSource::Reactor>>();
 	register_ptr_to_python<std::shared_ptr<QuoteSourceClient>>();
 	register_ptr_to_python<boost::shared_ptr<QuoteSourceClient::Sink>>();
-	register_ptr_to_python<std::shared_ptr<io::IoLineManager>>();
+	register_ptr_to_python<std::shared_ptr<cppio::IoLineManager>>();
 
-	class_<io::IoLineManager, std::shared_ptr<io::IoLineManager>, boost::noncopyable>("IoLineManager", no_init);
+	class_<cppio::IoLineManager, std::shared_ptr<cppio::IoLineManager>, boost::noncopyable>("IoLineManager", no_init);
 
 	def("makeIoLineManager", makeIoLineManager);
 
@@ -102,7 +91,7 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		.def("clientRequestedStream", pure_virtual(&QuoteSource::Reactor::clientRequestedStream));
 
 	class_<QuoteSource, std::shared_ptr<QuoteSource>, boost::noncopyable>("QuoteSource", no_init)
-		.def(init<std::shared_ptr<io::IoLineManager>, std::string>(args("linemanager", "endpoint")))
+		.def(init<std::shared_ptr<cppio::IoLineManager>, std::string>(args("linemanager", "endpoint")))
 		.def("start", &QuoteSource::start)
 		.def("stop", &QuoteSource::stop)
 		.def("incomingTick", &QuoteSource::incomingTick);
@@ -122,7 +111,7 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		.def("incomingTick", &SinkWrap::incomingTick);
 
 	class_<QuoteSourceClient, std::shared_ptr<QuoteSourceClient>, boost::noncopyable>("QuoteSourceClient", no_init)
-		.def(init<std::shared_ptr<io::IoLineManager>, std::string>(args("linemanager", "endpoint")))
+		.def(init<std::shared_ptr<cppio::IoLineManager>, std::string>(args("linemanager", "endpoint")))
 		.def("startStream", &QuoteSourceClient::startStream)
 		.def("stop", &QuoteSourceClient::stop)
 		.def("registerSink", &QuoteSourceClient::registerBoostSink);

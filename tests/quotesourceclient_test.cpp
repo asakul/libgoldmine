@@ -3,16 +3,12 @@
 
 #include "quotesource/quotesourceclient.h"
 #include "goldmine/data.h"
-#include "io/common/inproc.h"
 #include "quotesource/quotesource.h"
 
-#include <thread>
-#ifdef __MINGW32__
-#include "mingw.thread.h"
-#endif
+#include <boost/thread.hpp>
 
 using namespace goldmine;
-using namespace goldmine::io;
+using namespace cppio;
 
 class TickSink : public QuoteSourceClient::Sink
 {
@@ -31,8 +27,7 @@ public:
 
 TEST_CASE("QuotesourceClient", "[quotesourceclient]")
 {
-	auto manager = std::make_shared<IoLineManager>();
-	manager->registerFactory(std::unique_ptr<InprocLineFactory>(new InprocLineFactory()));
+	auto manager = createLineManager();
 
 	QuoteSourceClient client(manager, "inproc://quotesource");
 	auto sink = std::make_shared<TickSink>();
@@ -43,7 +38,7 @@ TEST_CASE("QuotesourceClient", "[quotesourceclient]")
 
 	client.startStream("t:FOO");
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
 
 	Tick tick;
 	tick.timestamp = 12;

@@ -2,8 +2,8 @@
 
 #include "goldmine/data.h"
 
-#include "io/ioline.h"
-#include "io/message.h"
+#include "cppio/ioline.h"
+#include "cppio/message.h"
 
 #include "exceptions.h"
 
@@ -46,7 +46,7 @@ std::string serializeOperation(Order::Operation op)
 
 struct BrokerClient::Impl
 {
-	Impl(const std::shared_ptr<io::IoLineManager> man, const std::string& addr) : manager(man),
+	Impl(const std::shared_ptr<cppio::IoLineManager> man, const std::string& addr) : manager(man),
 		address(addr),
 		run(false)
 	{
@@ -87,11 +87,11 @@ struct BrokerClient::Impl
 		root["order"] = ord;
 
 		Json::FastWriter writer;
-		io::Message msg;
+		cppio::Message msg;
 		msg << (uint32_t)MessageType::Control;
 		msg << writer.write(root);
 
-		io::MessageProtocol proto(line);
+		cppio::MessageProtocol proto(line);
 		proto.sendMessage(msg);
 
 		orders.push_back(order);
@@ -106,11 +106,11 @@ struct BrokerClient::Impl
 		root["cancel-order"] = ord;
 
 		Json::FastWriter writer;
-		io::Message msg;
+		cppio::Message msg;
 		msg << (uint32_t)MessageType::Control;
 		msg << writer.write(root);
 
-		io::MessageProtocol proto(line);
+		cppio::MessageProtocol proto(line);
 		proto.sendMessage(msg);
 	}
 
@@ -133,8 +133,8 @@ struct BrokerClient::Impl
 			if(line)
 			{
 				int timeout = 100;
-				line->setOption(io::LineOption::ReceiveTimeout, &timeout);
-				io::MessageProtocol proto(line);
+				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+				cppio::MessageProtocol proto(line);
 
 				if(id.empty())
 				{
@@ -143,7 +143,7 @@ struct BrokerClient::Impl
 						request["command"] = "get-identity";
 
 						Json::FastWriter writer;
-						io::Message msg;
+						cppio::Message msg;
 						msg << (uint32_t)MessageType::Control;
 						msg << writer.write(request);
 
@@ -151,7 +151,7 @@ struct BrokerClient::Impl
 					}
 
 					{
-						io::Message msg;
+						cppio::Message msg;
 						proto.readMessage(msg);
 
 						Json::Reader reader;
@@ -167,12 +167,12 @@ struct BrokerClient::Impl
 				{
 					try
 					{
-						io::Message inMessage;
+						cppio::Message inMessage;
 						proto.readMessage(inMessage);
 
 						handleMessage(inMessage);
 					}
-					catch(const io::TimeoutException& e)
+					catch(const cppio::TimeoutException& e)
 					{
 						// Ignore timeout
 					}
@@ -185,7 +185,7 @@ struct BrokerClient::Impl
 		}
 	}
 
-	void handleMessage(const io::Message& msg)
+	void handleMessage(const cppio::Message& msg)
 	{
 		auto json = msg.get<std::string>(1);
 		Json::Reader reader;
@@ -246,16 +246,16 @@ struct BrokerClient::Impl
 	}
 
 	std::string id;
-	std::shared_ptr<io::IoLineManager> manager;
+	std::shared_ptr<cppio::IoLineManager> manager;
 	std::string address;
 	bool run;
 	boost::thread eventThread;
-	std::shared_ptr<io::IoLine> line;
+	std::shared_ptr<cppio::IoLine> line;
 	std::vector<Reactor::Ptr> reactors;
 	std::vector<Order::Ptr> orders;
 };
 
-BrokerClient::BrokerClient(const std::shared_ptr<io::IoLineManager>& manager, const std::string& address) :
+BrokerClient::BrokerClient(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& address) :
 	m_impl(new Impl(manager, address))
 {
 }
