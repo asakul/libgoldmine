@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <boost/lockfree/spsc_queue.hpp>
 
+#include "json/json.h"
 #include "cppio/iolinemanager.h"
 
 namespace goldmine

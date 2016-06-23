@@ -7,9 +7,8 @@
 
 #include "goldmine/data.h"
 
-#include "exceptions.h"
+#include "goldmine/exceptions.h"
 
-#include "json/json.h"
 #include "cppio/message.h"
 #include "cppio/iolinemanager.h"
 

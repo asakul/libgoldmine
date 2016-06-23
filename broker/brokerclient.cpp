@@ -5,7 +5,7 @@
 #include "cppio/ioline.h"
 #include "cppio/message.h"
 
-#include "exceptions.h"
+#include "goldmine/exceptions.h"
 
 #include "json/json.h"
 

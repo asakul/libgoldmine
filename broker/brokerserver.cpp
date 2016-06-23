@@ -5,7 +5,7 @@
 #include "cppio/message.h"
 #include "json/json.h"
 
-#include "exceptions.h"
+#include "goldmine/exceptions.h"
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread.hpp>

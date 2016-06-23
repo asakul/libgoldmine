@@ -4,7 +4,7 @@
 #include "quotesource/quotesource.h"
 #include "quotesource/quotesourceclient.h"
 #include "cppio/iolinemanager.h"
-#include "exceptions.h"
+#include "goldmine/exceptions.h"
 
 using namespace boost::python;
 using namespace goldmine;
