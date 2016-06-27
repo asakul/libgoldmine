@@ -77,7 +77,16 @@ struct BrokerClient::Impl
 		reactors.push_back(reactor);
 	}
 
+	void registerReactor(const boost::shared_ptr<Reactor>& reactor)
+	{
+		boostReactors.push_back(reactor);
+	}
+
 	void unregisterReactor(const Reactor::Ptr& reactor)
+	{
+	}
+
+	void unregisterReactor(const boost::shared_ptr<Reactor>& reactor)
 	{
 	}
 
@@ -234,12 +243,21 @@ struct BrokerClient::Impl
 				{
 					reactor->orderCallback(*it);
 				}
+
+				for(const auto& reactor : boostReactors)
+				{
+					reactor->orderCallback(*it);
+				}
 			}
 		}
 		else if(!root["trade"].isNull())
 		{
 			auto trade = deserializeTrade(root["trade"]);
 			for(const auto& reactor : reactors)
+			{
+				reactor->tradeCallback(trade);
+			}
+			for(const auto& reactor : boostReactors)
 			{
 				reactor->tradeCallback(trade);
 			}
@@ -284,6 +302,7 @@ struct BrokerClient::Impl
 	boost::thread eventThread;
 	std::shared_ptr<cppio::IoLine> line;
 	std::vector<Reactor::Ptr> reactors;
+	std::vector<boost::shared_ptr<Reactor>> boostReactors;
 	std::vector<Order::Ptr> orders;
 };
 
@@ -301,7 +320,17 @@ void BrokerClient::registerReactor(const Reactor::Ptr& reactor)
 	m_impl->registerReactor(reactor);
 }
 
+void BrokerClient::registerReactor(const boost::shared_ptr<Reactor>& reactor)
+{
+	m_impl->registerReactor(reactor);
+}
+
 void BrokerClient::unregisterReactor(const Reactor::Ptr& reactor)
+{
+	m_impl->unregisterReactor(reactor);
+}
+
+void BrokerClient::unregisterReactor(const boost::shared_ptr<Reactor>& reactor)
 {
 	m_impl->unregisterReactor(reactor);
 }
