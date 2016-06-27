@@ -18,6 +18,26 @@ namespace goldmine
 using namespace boost::posix_time;
 using namespace boost::gregorian;
 
+static Order::State deserializeOrderState(const std::string& str)
+{
+	if(str == "cancelled")
+		return Order::State::Cancelled;
+	else if(str == "executed")
+		return Order::State::Executed;
+	else if(str == "partially-executed")
+		return Order::State::PartiallyExecuted;
+	else if(str == "rejected")
+		return Order::State::Rejected;
+	else if(str == "submitted")
+		return Order::State::Submitted;
+	else if(str == "unsubmitted")
+		return Order::State::Unsubmitted;
+	else if(str == "error")
+		return Order::State::Error;
+	else
+		return (Order::State)(-1);
+}
+
 std::string serializeOrderType(Order::OrderType t)
 {
 	switch(t)
@@ -150,16 +170,24 @@ struct BrokerClient::Impl
 						proto.sendMessage(msg);
 					}
 
+					while(run && id.empty())
 					{
-						cppio::Message msg;
-						proto.readMessage(msg);
+						try
+						{
+							cppio::Message msg;
+							proto.readMessage(msg);
 
-						Json::Reader reader;
-						auto json = msg.get<std::string>(1);
-						Json::Value root;
-						reader.parse(json, root);
+							Json::Reader reader;
+							auto json = msg.get<std::string>(1);
+							Json::Value root;
+							reader.parse(json, root);
 
-						id = root["identity"].asString();
+							id = root["identity"].asString();
+						}
+						catch(const cppio::TimeoutException& e)
+						{
+							// Ignore timeout
+						}
 					}
 				}
 
@@ -198,6 +226,10 @@ struct BrokerClient::Impl
 			auto it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
 			if(it != orders.end())
 			{
+				(*it)->updateState(deserializeOrderState(root["order"]["new-state"].asString()));
+				auto msg = root["order"]["message"].asString();
+				if(!msg.empty())
+					(*it)->setMessage(msg);
 				for(const auto& reactor : reactors)
 				{
 					reactor->orderCallback(*it);

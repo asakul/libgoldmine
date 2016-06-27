@@ -133,7 +133,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 				Json::Value root;
 				Json::Reader reader;
 				if(!reader.parse(incoming.get<std::string>(1), root))
-					BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Unable to parse incoming JSON"));
+					BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Unable to parse incoming JSON: " + reader.getFormattedErrorMessages()));
 
 				Json::Value command = root["command"];
 				if(!command.isNull())
