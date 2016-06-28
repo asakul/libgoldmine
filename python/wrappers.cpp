@@ -263,7 +263,7 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		}
 	};
 
-	class_<BrokerClientReactorWrap, boost::shared_ptr<BrokerClientReactorWrap>, boost::noncopyable>("BrokerClientReactorWrap")
+	class_<BrokerClientReactorWrap, boost::shared_ptr<BrokerClientReactorWrap>, boost::noncopyable>("BrokerClientReactor")
 		.def("orderCallback", &BrokerClientReactorWrap::orderCallback)
 		.def("tradeCallback", &BrokerClientReactorWrap::tradeCallback)
 		;

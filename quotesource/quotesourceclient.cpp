@@ -37,7 +37,7 @@ struct QuoteSourceClient::Impl
 			line = manager->createClient(address);
 			if(line)
 			{
-				int timeout = 200;
+				int timeout = 2000;
 				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
 				cppio::MessageProtocol proto(line);
 				cppio::Message msg;

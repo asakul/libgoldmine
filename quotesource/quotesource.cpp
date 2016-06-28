@@ -263,6 +263,10 @@ void Client::eventLoop()
 				m_proto.sendMessage(outgoingMessage);
 			}
 		}
+		catch(const ConnectionLost& e)
+		{
+			break;
+		}
 		catch(const IoException& e)
 		{
 			// meh
