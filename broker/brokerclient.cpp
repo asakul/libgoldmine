@@ -158,40 +158,58 @@ struct BrokerClient::Impl
 		run = true;
 		while(run)
 		{
-			line = manager->createClient(address);
-			if(line)
+			try
 			{
-				int timeout = 100;
-				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
-				cppio::MessageProtocol proto(line);
-
-				if(id.empty())
+				line = manager->createClient(address);
+				if(line)
 				{
+					int timeout = 100;
+					line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+					cppio::MessageProtocol proto(line);
+
+					if(id.empty())
 					{
-						Json::Value request;
-						request["command"] = "get-identity";
+						{
+							Json::Value request;
+							request["command"] = "get-identity";
 
-						Json::FastWriter writer;
-						cppio::Message msg;
-						msg << (uint32_t)MessageType::Control;
-						msg << writer.write(request);
+							Json::FastWriter writer;
+							cppio::Message msg;
+							msg << (uint32_t)MessageType::Control;
+							msg << writer.write(request);
 
-						proto.sendMessage(msg);
+							proto.sendMessage(msg);
+						}
+
+						while(run && id.empty())
+						{
+							try
+							{
+								cppio::Message msg;
+								proto.readMessage(msg);
+
+								Json::Reader reader;
+								auto json = msg.get<std::string>(1);
+								Json::Value root;
+								reader.parse(json, root);
+
+								id = root["identity"].asString();
+							}
+							catch(const cppio::TimeoutException& e)
+							{
+								// Ignore timeout
+							}
+						}
 					}
 
-					while(run && id.empty())
+					while(run)
 					{
 						try
 						{
-							cppio::Message msg;
-							proto.readMessage(msg);
+							cppio::Message inMessage;
+							proto.readMessage(inMessage);
 
-							Json::Reader reader;
-							auto json = msg.get<std::string>(1);
-							Json::Value root;
-							reader.parse(json, root);
-
-							id = root["identity"].asString();
+							handleMessage(inMessage);
 						}
 						catch(const cppio::TimeoutException& e)
 						{
@@ -199,25 +217,14 @@ struct BrokerClient::Impl
 						}
 					}
 				}
-
-				while(run)
+				else
 				{
-					try
-					{
-						cppio::Message inMessage;
-						proto.readMessage(inMessage);
-
-						handleMessage(inMessage);
-					}
-					catch(const cppio::TimeoutException& e)
-					{
-						// Ignore timeout
-					}
+					boost::this_thread::sleep_for(boost::chrono::seconds(5));
 				}
 			}
-			else
+			catch(const cppio::IoException& e)
 			{
-				boost::this_thread::sleep_for(boost::chrono::seconds(5));
+				printf("BrokerClient: %s\n", e.what());
 			}
 		}
 	}

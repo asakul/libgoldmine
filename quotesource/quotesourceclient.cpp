@@ -34,73 +34,80 @@ struct QuoteSourceClient::Impl
 		run = true;
 		while(run)
 		{
-			line = manager->createClient(address);
-			if(line)
+			try
 			{
-				int timeout = 2000;
-				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
-				cppio::MessageProtocol proto(line);
-				cppio::Message msg;
-				msg << (uint32_t)MessageType::Control;
-
-				Json::Value root;
-				root["command"] = "start-stream";
-				std::vector<std::string> tickers;
-				boost::split(tickers, streamId, boost::is_any_of(","));
-				Json::Value tickersValue(Json::arrayValue);
-				for(const auto& ticker : tickers)
+				line = manager->createClient(address);
+				if(line)
 				{
-					tickersValue.append(ticker);
-				}
-				root["tickers"] = tickersValue;
-				Json::FastWriter writer;
-				msg << writer.write(root);
+					int timeout = 2000;
+					line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+					cppio::MessageProtocol proto(line);
+					cppio::Message msg;
+					msg << (uint32_t)MessageType::Control;
 
-				proto.sendMessage(msg);
-
-				cppio::Message response;
-				proto.readMessage(response);
-
-				// TODO check
-				while(run)
-				{
-					try
+					Json::Value root;
+					root["command"] = "start-stream";
+					std::vector<std::string> tickers;
+					boost::split(tickers, streamId, boost::is_any_of(","));
+					Json::Value tickersValue(Json::arrayValue);
+					for(const auto& ticker : tickers)
 					{
-						cppio::Message incoming;
-						proto.readMessage(incoming);
-						uint32_t messageType = incoming.get<uint32_t>(0);
-						if(messageType == (int)goldmine::MessageType::Data)
+						tickersValue.append(ticker);
+					}
+					root["tickers"] = tickersValue;
+					Json::FastWriter writer;
+					msg << writer.write(root);
+
+					proto.sendMessage(msg);
+
+					cppio::Message response;
+					proto.readMessage(response);
+
+					// TODO check
+					while(run)
+					{
+						try
 						{
-							auto ticker = incoming.get<std::string>(1);
-							size_t size = incoming.frame(2).size();
-							const void* ticks = incoming.frame(2).data();
-							const Tick* tick = reinterpret_cast<const Tick*>(ticks);
-							for(const auto& sink : sinks)
+							cppio::Message incoming;
+							proto.readMessage(incoming);
+							uint32_t messageType = incoming.get<uint32_t>(0);
+							if(messageType == (int)goldmine::MessageType::Data)
 							{
-								sink->incomingTick(ticker, *tick);
-							}
-							for(const auto& sink : boostSinks)
-							{
-								sink->incomingTick(ticker, *tick);
-							}
-							for(const auto& sink : rawSinks)
-							{
-								sink->incomingTick(ticker, *tick);
+								auto ticker = incoming.get<std::string>(1);
+								size_t size = incoming.frame(2).size();
+								const void* ticks = incoming.frame(2).data();
+								const Tick* tick = reinterpret_cast<const Tick*>(ticks);
+								for(const auto& sink : sinks)
+								{
+									sink->incomingTick(ticker, *tick);
+								}
+								for(const auto& sink : boostSinks)
+								{
+									sink->incomingTick(ticker, *tick);
+								}
+								for(const auto& sink : rawSinks)
+								{
+									sink->incomingTick(ticker, *tick);
+								}
 							}
 						}
-					}
-					catch(const cppio::TimeoutException& ex)
-					{
-						// Timeout, do nothing
-					}
-					catch(const LibGoldmineException& ex)
-					{
+						catch(const cppio::TimeoutException& ex)
+						{
+							// Timeout, do nothing
+						}
+						catch(const LibGoldmineException& ex)
+						{
+						}
 					}
 				}
+				else
+				{
+					boost::this_thread::sleep_for(boost::chrono::seconds(5));
+				}
 			}
-			else
+			catch(const cppio::IoException& e)
 			{
-				boost::this_thread::sleep_for(boost::chrono::seconds(5));
+				printf("Quotesourceclient: %s\n", e.what());
 			}
 		}
 	}

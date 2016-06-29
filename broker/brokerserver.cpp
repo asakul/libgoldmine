@@ -350,6 +350,8 @@ struct BrokerServer::Impl : public Broker::Reactor
 	{
 		run = true;
 		auto acceptor = manager->createServer(endpoint);
+		if(!acceptor)
+			throw std::runtime_error("Unable to bind acceptor to endpoint: " + endpoint);
 		while(run)
 		{
 			auto line = acceptor->waitConnection(std::chrono::milliseconds(100));
