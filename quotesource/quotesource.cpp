@@ -41,7 +41,8 @@ public:
 		m_run(false),
 		m_manualMode(false),
 		m_tickQueue(1024),
-		m_nextTickMessages(0)
+		m_nextTickMessages(0),
+		m_allTickers(false)
 	{
 		int timeout = 100;
 		line->setOption(LineOption::ReceiveTimeout, &timeout);
@@ -176,7 +177,7 @@ public:
 	{
 		if(!m_manualMode)
 		{
-			if(m_tickers.find(ticker) != m_tickers.end())
+			if((m_tickers.find(ticker) != m_tickers.end()) || (m_allTickers))
 			{
 				sendTick(ticker, tick);
 			}
@@ -195,6 +196,11 @@ public:
 			if(ticker.substr(0, 2) != "t:")
 				BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Only tick data is supported now"));
 			auto pureTicker = ticker.substr(2);
+			if(pureTicker == "*")
+			{
+				m_allTickers = true;
+				break;
+			}
 			m_tickers.insert(pureTicker);
 		}
 	}
@@ -243,6 +249,7 @@ private:
 	boost::condition_variable m_tickQueueCondition;
 	boost::lockfree::spsc_queue<std::pair<std::string, Tick>> m_tickQueue;
 	std::atomic_int m_nextTickMessages;
+	bool m_allTickers;
 };
 
 
