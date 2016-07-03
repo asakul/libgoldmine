@@ -225,6 +225,7 @@ struct BrokerClient::Impl
 			catch(const cppio::IoException& e)
 			{
 				printf("BrokerClient: %s\n", e.what());
+				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}
 	}

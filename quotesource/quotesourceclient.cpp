@@ -90,6 +90,8 @@ struct QuoteSourceClient::Impl
 									sink->incomingTick(ticker, *tick);
 								}
 							}
+
+							sendHeartbeat(proto);
 						}
 						catch(const cppio::TimeoutException& ex)
 						{
@@ -108,8 +110,18 @@ struct QuoteSourceClient::Impl
 			catch(const cppio::IoException& e)
 			{
 				printf("Quotesourceclient: %s\n", e.what());
+				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}
+	}
+
+	void sendHeartbeat(cppio::MessageProtocol& proto)
+	{
+		cppio::Message msg;
+		msg << (uint32_t)MessageType::Service;
+		msg << (uint32_t)ServiceDataType::Heartbeat;
+
+		proto.sendMessage(msg);
 	}
 };
 

@@ -89,7 +89,8 @@ private:
 
 struct Trade
 {
-	Trade() : orderId(0), price(0), quantity(0), operation(Order::Operation::Buy) {}
+	Trade() : orderId(0), price(0), quantity(0), operation(Order::Operation::Buy),
+		account(), security(), timestamp(0), useconds(0) {}
 	int orderId;
 	double price;
 	int quantity;

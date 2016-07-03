@@ -143,6 +143,10 @@ public:
 			m_nextTickMessages.fetch_add(1);
 			m_tickQueueCondition.notify_one();
 		}
+		else if(serviceMessageType == (int)ServiceDataType::Heartbeat)
+		{
+			// Ignore
+		}
 
 		Message msg;
 		return msg;
