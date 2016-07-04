@@ -24,12 +24,21 @@ struct QuoteSource::Impl
 	{
 	}
 
+	void removeClient(Client* client)
+	{
+		boost::unique_lock<boost::mutex> lock(clientMutex);
+		clients.erase(std::remove_if(clients.begin(), clients.end(), [&](const std::unique_ptr<Client>& c)
+					{ return c.get() == client; }), clients.end());
+	}
+
 	std::shared_ptr<IoLineManager> manager;
 	std::string endpoint;
 	boost::thread acceptThread;
 	std::atomic<bool> run;
 	std::vector<Reactor::Ptr> reactors;
-	std::vector<Client> clients;
+
+	boost::mutex clientMutex;
+	std::vector<std::unique_ptr<Client>> clients;
 };
 
 class Client
@@ -57,7 +66,6 @@ public:
 
 	virtual ~Client()
 	{
-		stop();
 	}
 
 	void start()
@@ -263,9 +271,13 @@ void Client::eventLoop()
 				m_proto.sendMessage(outgoingMessage);
 			}
 		}
+		catch(const TimeoutException& e)
+		{
+			// Meh
+		}
 		catch(const IoException& e)
 		{
-			// meh
+			m_run = false;
 		}
 		catch(const LibGoldmineException& e)
 		{
@@ -286,6 +298,7 @@ void Client::eventLoop()
 			m_proto.sendMessage(msg);
 		}
 	}
+	m_quotesource->removeClient(this);
 }
 
 QuoteSource::QuoteSource(const std::shared_ptr<IoLineManager>& manager, const std::string& endpoint) : m_impl(new Impl(manager))
@@ -325,11 +338,11 @@ void QuoteSource::stop() noexcept
 	catch(const std::exception& e)
 	{
 	}
-	for(auto& client : m_impl->clients)
+	for(const auto& client : m_impl->clients)
 	{
 		try
 		{
-			client.stop();
+			client->stop();
 		}
 		catch(const std::exception& e)
 		{
@@ -351,9 +364,10 @@ void QuoteSource::eventLoop()
 			auto line = controlAcceptor->waitConnection(std::chrono::milliseconds(200));
 			if(line)
 			{
-				m_impl->clients.emplace_back(line, m_impl.get());
+				boost::unique_lock<boost::mutex> lock(m_impl->clientMutex);
+				m_impl->clients.push_back(std::unique_ptr<Client>(new Client(line, m_impl.get())));
 				auto& client = m_impl->clients.back();
-				client.start();
+				client->start();
 			}
 		}
 		catch(const LibGoldmineException& e)
@@ -368,9 +382,10 @@ void QuoteSource::eventLoop()
 
 void QuoteSource::incomingTick(const std::string& ticker, const Tick& tick)
 {
-	for(auto& client : m_impl->clients)
+	boost::unique_lock<boost::mutex> lock(m_impl->clientMutex);
+	for(const auto& client : m_impl->clients)
 	{
-		client.incomingTick(ticker, tick);
+		client->incomingTick(ticker, tick);
 	}
 }
 
