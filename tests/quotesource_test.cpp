@@ -204,6 +204,47 @@ TEST_CASE("QuoteSource", "[quotesource]")
 
 			REQUIRE(*recvdTick == tick);
 		}
+
+		SECTION("Stream request - all tickers")
+		{
+			Json::Value tickers(Json::arrayValue);
+			tickers.append("t:*");
+			Json::Value root;
+			root["command"] = "start-stream";
+			root["tickers"] = tickers;
+			sendControlMessage(root, controlProto);
+
+			Message okMessage;
+			controlProto.readMessage(okMessage);
+
+			goldmine::Tick tick;
+			tick.timestamp = 12;
+			tick.useconds = 0;
+			tick.packet_type = (int)goldmine::PacketType::Tick;
+			tick.datatype = (int)goldmine::Datatype::Price;
+			tick.value = goldmine::decimal_fixed(42, 0);
+
+			std::vector<std::string> testtickers {"FOO", "BAR", "ALPHA"};
+			for(const auto& ticker : testtickers)
+			{
+				source.incomingTick(ticker, tick);
+
+				Message recvd;
+				controlProto.readMessage(recvd);
+
+				REQUIRE(recvd.size() == 3);
+				int messageType = recvd.get<uint32_t>(0);
+				REQUIRE(messageType == (int)goldmine::MessageType::Data);
+				std::string recvdTicker = recvd.get<std::string>(1);
+				REQUIRE(recvdTicker == ticker);
+
+				std::string rawTick = recvd.get<std::string>(2);
+				const goldmine::Tick* recvdTick = reinterpret_cast<const goldmine::Tick*>(rawTick.data());
+
+				REQUIRE(*recvdTick == tick);
+			}
+
+		}
 	}
 
 	SECTION("Invalid packet")

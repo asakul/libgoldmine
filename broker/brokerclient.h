@@ -31,7 +31,9 @@ public:
 	virtual ~BrokerClient();
 
 	void registerReactor(const Reactor::Ptr& reactor);
+	void registerReactor(const boost::shared_ptr<Reactor>& reactor);
 	void unregisterReactor(const Reactor::Ptr& reactor);
+	void unregisterReactor(const boost::shared_ptr<Reactor>& reactor);
 
 	void start();
 	void stop();

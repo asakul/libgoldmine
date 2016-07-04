@@ -18,6 +18,26 @@ namespace goldmine
 using namespace boost::posix_time;
 using namespace boost::gregorian;
 
+static Order::State deserializeOrderState(const std::string& str)
+{
+	if(str == "cancelled")
+		return Order::State::Cancelled;
+	else if(str == "executed")
+		return Order::State::Executed;
+	else if(str == "partially-executed")
+		return Order::State::PartiallyExecuted;
+	else if(str == "rejected")
+		return Order::State::Rejected;
+	else if(str == "submitted")
+		return Order::State::Submitted;
+	else if(str == "unsubmitted")
+		return Order::State::Unsubmitted;
+	else if(str == "error")
+		return Order::State::Error;
+	else
+		return (Order::State)(-1);
+}
+
 std::string serializeOrderType(Order::OrderType t)
 {
 	switch(t)
@@ -57,7 +77,16 @@ struct BrokerClient::Impl
 		reactors.push_back(reactor);
 	}
 
+	void registerReactor(const boost::shared_ptr<Reactor>& reactor)
+	{
+		boostReactors.push_back(reactor);
+	}
+
 	void unregisterReactor(const Reactor::Ptr& reactor)
+	{
+	}
+
+	void unregisterReactor(const boost::shared_ptr<Reactor>& reactor)
 	{
 	}
 
@@ -129,57 +158,73 @@ struct BrokerClient::Impl
 		run = true;
 		while(run)
 		{
-			line = manager->createClient(address);
-			if(line)
+			try
 			{
-				int timeout = 100;
-				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
-				cppio::MessageProtocol proto(line);
-
-				if(id.empty())
+				line = manager->createClient(address);
+				if(line)
 				{
+					int timeout = 100;
+					line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+					cppio::MessageProtocol proto(line);
+
+					if(id.empty())
 					{
-						Json::Value request;
-						request["command"] = "get-identity";
+						{
+							Json::Value request;
+							request["command"] = "get-identity";
 
-						Json::FastWriter writer;
-						cppio::Message msg;
-						msg << (uint32_t)MessageType::Control;
-						msg << writer.write(request);
+							Json::FastWriter writer;
+							cppio::Message msg;
+							msg << (uint32_t)MessageType::Control;
+							msg << writer.write(request);
 
-						proto.sendMessage(msg);
+							proto.sendMessage(msg);
+						}
+
+						while(run && id.empty())
+						{
+							try
+							{
+								cppio::Message msg;
+								proto.readMessage(msg);
+
+								Json::Reader reader;
+								auto json = msg.get<std::string>(1);
+								Json::Value root;
+								reader.parse(json, root);
+
+								id = root["identity"].asString();
+							}
+							catch(const cppio::TimeoutException& e)
+							{
+								// Ignore timeout
+							}
+						}
 					}
 
+					while(run)
 					{
-						cppio::Message msg;
-						proto.readMessage(msg);
+						try
+						{
+							cppio::Message inMessage;
+							proto.readMessage(inMessage);
 
-						Json::Reader reader;
-						auto json = msg.get<std::string>(1);
-						Json::Value root;
-						reader.parse(json, root);
-
-						id = root["identity"].asString();
+							handleMessage(inMessage);
+						}
+						catch(const cppio::TimeoutException& e)
+						{
+							// Ignore timeout
+						}
 					}
 				}
-
-				while(run)
+				else
 				{
-					try
-					{
-						cppio::Message inMessage;
-						proto.readMessage(inMessage);
-
-						handleMessage(inMessage);
-					}
-					catch(const cppio::TimeoutException& e)
-					{
-						// Ignore timeout
-					}
+					boost::this_thread::sleep_for(boost::chrono::seconds(5));
 				}
 			}
-			else
+			catch(const cppio::IoException& e)
 			{
+				printf("BrokerClient: %s\n", e.what());
 				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}
@@ -198,7 +243,16 @@ struct BrokerClient::Impl
 			auto it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
 			if(it != orders.end())
 			{
+				(*it)->updateState(deserializeOrderState(root["order"]["new-state"].asString()));
+				auto msg = root["order"]["message"].asString();
+				if(!msg.empty())
+					(*it)->setMessage(msg);
 				for(const auto& reactor : reactors)
+				{
+					reactor->orderCallback(*it);
+				}
+
+				for(const auto& reactor : boostReactors)
 				{
 					reactor->orderCallback(*it);
 				}
@@ -208,6 +262,10 @@ struct BrokerClient::Impl
 		{
 			auto trade = deserializeTrade(root["trade"]);
 			for(const auto& reactor : reactors)
+			{
+				reactor->tradeCallback(trade);
+			}
+			for(const auto& reactor : boostReactors)
 			{
 				reactor->tradeCallback(trade);
 			}
@@ -252,6 +310,7 @@ struct BrokerClient::Impl
 	boost::thread eventThread;
 	std::shared_ptr<cppio::IoLine> line;
 	std::vector<Reactor::Ptr> reactors;
+	std::vector<boost::shared_ptr<Reactor>> boostReactors;
 	std::vector<Order::Ptr> orders;
 };
 
@@ -269,7 +328,17 @@ void BrokerClient::registerReactor(const Reactor::Ptr& reactor)
 	m_impl->registerReactor(reactor);
 }
 
+void BrokerClient::registerReactor(const boost::shared_ptr<Reactor>& reactor)
+{
+	m_impl->registerReactor(reactor);
+}
+
 void BrokerClient::unregisterReactor(const Reactor::Ptr& reactor)
+{
+	m_impl->unregisterReactor(reactor);
+}
+
+void BrokerClient::unregisterReactor(const boost::shared_ptr<Reactor>& reactor)
 {
 	m_impl->unregisterReactor(reactor);
 }

@@ -133,7 +133,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 				Json::Value root;
 				Json::Reader reader;
 				if(!reader.parse(incoming.get<std::string>(1), root))
-					BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Unable to parse incoming JSON"));
+					BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Unable to parse incoming JSON: " + reader.getFormattedErrorMessages()));
 
 				Json::Value command = root["command"];
 				if(!command.isNull())
@@ -350,6 +350,8 @@ struct BrokerServer::Impl : public Broker::Reactor
 	{
 		run = true;
 		auto acceptor = manager->createServer(endpoint);
+		if(!acceptor)
+			throw std::runtime_error("Unable to bind acceptor to endpoint: " + endpoint);
 		while(run)
 		{
 			auto line = acceptor->waitConnection(std::chrono::milliseconds(100));
