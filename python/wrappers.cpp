@@ -36,7 +36,7 @@ static std::string serializeOrderState(Order::State state)
 
 std::shared_ptr<cppio::IoLineManager> makeIoLineManager()
 {
-	return cppio::createLineManager();
+	return std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 }
 
 static Order::Ptr createOrder(int clientAssignedId, const std::string& account,

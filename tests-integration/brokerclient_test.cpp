@@ -66,21 +66,21 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 
 TEST_CASE("BrokerClient", "[broker]")
 {
-	auto manager = createLineManager();
+	auto manager = std::shared_ptr<IoLineManager>(createLineManager());
 
 	auto client = std::make_shared<BrokerClient>(manager, "inproc://brokerclient");
 	auto reactor = std::make_shared<TestReactor>();
 	client->registerReactor(reactor);
 
-	auto acceptor = manager->createServer("inproc://brokerclient");
+	auto acceptor = std::unique_ptr<IoAcceptor>(manager->createServer("inproc://brokerclient"));
 
 	client->start();
-	auto server = acceptor->waitConnection(std::chrono::milliseconds(100));
+	auto server = std::unique_ptr<IoLine>(acceptor->waitConnection(100));
 	int timeout = 100;
 	server->setOption(LineOption::ReceiveTimeout, &timeout);
 
 	REQUIRE(server);
-	MessageProtocol proto(server);
+	MessageProtocol proto(server.get());
 
 	SECTION("If no identity is set, requests identity")
 	{

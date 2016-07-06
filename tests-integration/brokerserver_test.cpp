@@ -133,7 +133,7 @@ static void doIdentityRequest(MessageProtocol& client)
 
 TEST_CASE("BrokerServer", "[broker]")
 {
-	auto manager = createLineManager();
+	auto manager = std::shared_ptr<IoLineManager>(createLineManager());
 
 	auto server = std::make_shared<BrokerServer>(manager, "inproc://brokerserver");
 	auto broker = std::make_shared<TestBroker>("TEST_ACCOUNT");
@@ -141,10 +141,10 @@ TEST_CASE("BrokerServer", "[broker]")
 
 	server->start();
 
-	auto clientLine = manager->createClient("inproc://brokerserver");
+	auto clientLine = std::unique_ptr<IoLine>(manager->createClient("inproc://brokerserver"));
 	int timeout = 200;
 	clientLine->setOption(LineOption::ReceiveTimeout, &timeout);
-	MessageProtocol client(clientLine);
+	MessageProtocol client(clientLine.get());
 
 	SECTION("New identity")
 	{

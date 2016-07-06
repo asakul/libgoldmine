@@ -68,17 +68,17 @@ static bool receiveControlMessage(Json::Value& root, MessageProtocol& line)
 
 TEST_CASE("QuoteSource", "[quotesource]")
 {
-	auto manager = createLineManager();
+	auto manager = std::shared_ptr<IoLineManager>(createLineManager());
 
 	auto exceptionsReactor = std::make_shared<ExceptionsReactor>();
 	QuoteSource source(manager, "inproc://control-quotesource");
 	source.addReactor(exceptionsReactor);
 	source.start();
 
-	auto control = manager->createClient("inproc://control-quotesource");
+	auto control = std::shared_ptr<IoLine>(manager->createClient("inproc://control-quotesource"));
 	int timeout = 100;
 	control->setOption(LineOption::ReceiveTimeout, &timeout);
-	MessageProtocol controlProto(control);
+	MessageProtocol controlProto(control.get());
 
 	SECTION("Capability request")
 	{
@@ -160,7 +160,8 @@ TEST_CASE("QuoteSource", "[quotesource]")
 			source.incomingTick("RIM6", tick);
 
 			Message recvd;
-			REQUIRE_THROWS(controlProto.readMessage(recvd));
+			ssize_t rc = controlProto.readMessage(recvd);
+			REQUIRE(rc == eTimeout);
 		}
 
 		SECTION("Request ticks, manual mode")

@@ -1,6 +1,7 @@
 
 #include "quotesourceclient.h"
 #include "cppio/message.h"
+#include "cppio/errors.h"
 #include "goldmine/exceptions.h"
 
 #include "json/json.h"
@@ -34,42 +35,42 @@ struct QuoteSourceClient::Impl
 		run = true;
 		while(run)
 		{
-			try
+			line = std::shared_ptr<cppio::IoLine>(manager->createClient(address));
+			if(line)
 			{
-				line = manager->createClient(address);
-				if(line)
+				int timeout = 2000;
+				line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
+				cppio::MessageProtocol proto(line.get());
+				cppio::Message msg;
+				msg << (uint32_t)MessageType::Control;
+
+				Json::Value root;
+				root["command"] = "start-stream";
+				std::vector<std::string> tickers;
+				boost::split(tickers, streamId, boost::is_any_of(","));
+				Json::Value tickersValue(Json::arrayValue);
+				for(const auto& ticker : tickers)
 				{
-					int timeout = 2000;
-					line->setOption(cppio::LineOption::ReceiveTimeout, &timeout);
-					cppio::MessageProtocol proto(line);
-					cppio::Message msg;
-					msg << (uint32_t)MessageType::Control;
+					tickersValue.append(ticker);
+				}
+				root["tickers"] = tickersValue;
+				Json::FastWriter writer;
+				msg << writer.write(root);
 
-					Json::Value root;
-					root["command"] = "start-stream";
-					std::vector<std::string> tickers;
-					boost::split(tickers, streamId, boost::is_any_of(","));
-					Json::Value tickersValue(Json::arrayValue);
-					for(const auto& ticker : tickers)
+				proto.sendMessage(msg);
+
+				cppio::Message response;
+				proto.readMessage(response);
+
+				// TODO check
+				while(run)
+				{
+					try
 					{
-						tickersValue.append(ticker);
-					}
-					root["tickers"] = tickersValue;
-					Json::FastWriter writer;
-					msg << writer.write(root);
-
-					proto.sendMessage(msg);
-
-					cppio::Message response;
-					proto.readMessage(response);
-
-					// TODO check
-					while(run)
-					{
-						try
+						cppio::Message incoming;
+						ssize_t rc = proto.readMessage(incoming);
+						if(rc > 0)
 						{
-							cppio::Message incoming;
-							proto.readMessage(incoming);
 							uint32_t messageType = incoming.get<uint32_t>(0);
 							if(messageType == (int)goldmine::MessageType::Data)
 							{
@@ -93,23 +94,18 @@ struct QuoteSourceClient::Impl
 
 							sendHeartbeat(proto);
 						}
-						catch(const cppio::TimeoutException& ex)
+						else if(rc != cppio::eTimeout)
 						{
-							// Timeout, do nothing
-						}
-						catch(const LibGoldmineException& ex)
-						{
+							run = false;
 						}
 					}
-				}
-				else
-				{
-					boost::this_thread::sleep_for(boost::chrono::seconds(5));
+					catch(const LibGoldmineException& ex)
+					{
+					}
 				}
 			}
-			catch(const cppio::IoException& e)
+			else
 			{
-				printf("Quotesourceclient: %s\n", e.what());
 				boost::this_thread::sleep_for(boost::chrono::seconds(5));
 			}
 		}

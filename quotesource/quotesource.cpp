@@ -11,6 +11,7 @@
 
 #include "json/json.h"
 #include "cppio/iolinemanager.h"
+#include "cppio/errors.h"
 
 namespace goldmine
 {
@@ -45,8 +46,9 @@ class Client
 {
 public:
 	Client(const std::shared_ptr<IoLine>& line, QuoteSource::Impl* impl) :
+		m_line(line),
 		m_quotesource(impl),
-		m_proto(line),
+		m_proto(line.get()),
 		m_run(false),
 		m_manualMode(false),
 		m_tickQueue(1024),
@@ -249,6 +251,7 @@ public:
 	}
 
 private:
+	std::shared_ptr<IoLine> m_line;
 	QuoteSource::Impl* m_quotesource;
 	MessageProtocol m_proto;
 	boost::thread m_clientThread;
@@ -274,21 +277,24 @@ void Client::eventLoop()
 		try
 		{
 			Message incomingMessage;
-			m_proto.readMessage(incomingMessage);
+			ssize_t rc = m_proto.readMessage(incomingMessage);
 
-			Message outgoingMessage = handle(incomingMessage);
-			if(outgoingMessage.size() > 0)
+			if(rc > 0)
 			{
-				m_proto.sendMessage(outgoingMessage);
+				Message outgoingMessage = handle(incomingMessage);
+				if(outgoingMessage.size() > 0)
+				{
+					m_proto.sendMessage(outgoingMessage);
+				}
 			}
-		}
-		catch(const TimeoutException& e)
-		{
-			// Meh
-		}
-		catch(const IoException& e)
-		{
-			m_run = false;
+			else if(rc == eTimeout)
+			{
+				// Ignore
+			}
+			else
+			{
+				m_run = false;
+			}
 		}
 		catch(const LibGoldmineException& e)
 		{
@@ -366,13 +372,13 @@ void QuoteSource::eventLoop()
 {
 	m_impl->run = true;
 
-	auto controlAcceptor = m_impl->manager->createServer(m_impl->endpoint);
+	auto controlAcceptor = std::unique_ptr<IoAcceptor>(m_impl->manager->createServer(m_impl->endpoint));
 
 	while(m_impl->run)
 	{
 		try
 		{
-			auto line = controlAcceptor->waitConnection(std::chrono::milliseconds(200));
+			auto line = std::shared_ptr<IoLine>(controlAcceptor->waitConnection(200));
 			if(line)
 			{
 				boost::unique_lock<boost::mutex> lock(m_impl->clientMutex);

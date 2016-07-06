@@ -118,11 +118,11 @@ if(WIN32)
 target_link_libraries(libgoldmine-integration-tests -lws2_32)
 endif(WIN32)
 
-add_executable(server test-misc/server.cpp)
-target_link_libraries(server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
+#add_executable(server test-misc/server.cpp)
+#target_link_libraries(server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
 
-add_executable(client test-misc/client.cpp)
-target_link_libraries(client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
+#add_executable(client test-misc/client.cpp)
+#target_link_libraries(client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
 
 include(CodeCoverage)
 setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests libgoldmine-integration-tests coverage)

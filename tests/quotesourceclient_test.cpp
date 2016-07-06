@@ -27,7 +27,7 @@ public:
 
 TEST_CASE("QuotesourceClient", "[quotesourceclient]")
 {
-	auto manager = createLineManager();
+	auto manager = std::shared_ptr<IoLineManager>(createLineManager());
 
 	QuoteSourceClient client(manager, "inproc://quotesource");
 	auto sink = std::make_shared<TickSink>();

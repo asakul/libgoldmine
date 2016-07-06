@@ -3,6 +3,7 @@
 
 #include "cppio/iolinemanager.h"
 #include "cppio/message.h"
+#include "cppio/errors.h"
 #include "json/json.h"
 
 #include "goldmine/exceptions.h"
@@ -89,38 +90,38 @@ struct BrokerServer::Impl : public Broker::Reactor
 		void eventLoop()
 		{
 			run = true;
-			cppio::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line.get());
 
 			while(run)
 			{
 				try
 				{
 					cppio::Message incoming;
-					proto.readMessage(incoming);
+					ssize_t rc = proto.readMessage(incoming);
 
-					try
+					if(rc > 0)
 					{
 						handleMessage(incoming, proto);
 					}
-					catch(const LibGoldmineException& e)
+					else if(rc != cppio::eTimeout)
 					{
-						Json::Value response;
-						response["result"] = "error";
-						auto errmsg = boost::get_error_info<errinfo_str>(e);
-						if(errmsg)
-							response["reason"] = *errmsg;
-
-						Json::FastWriter writer;
-						cppio::Message outgoing;
-						outgoing << (uint32_t)MessageType::Control;
-						outgoing << writer.write(response);
-
-						proto.sendMessage(outgoing);
+						run = false;
 					}
-
 				}
-				catch(const cppio::IoException& e)
+				catch(const LibGoldmineException& e)
 				{
+					Json::Value response;
+					response["result"] = "error";
+					auto errmsg = boost::get_error_info<errinfo_str>(e);
+					if(errmsg)
+						response["reason"] = *errmsg;
+
+					Json::FastWriter writer;
+					cppio::Message outgoing;
+					outgoing << (uint32_t)MessageType::Control;
+					outgoing << writer.write(response);
+
+					proto.sendMessage(outgoing);
 				}
 			}
 		}
@@ -230,7 +231,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 			message << (uint32_t)MessageType::Control;
 			message << writer.write(root);
 
-			cppio::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line.get());
 			proto.sendMessage(message);
 
 			order->setExecutedQuantity(order->executedQuantity() + trade.quantity);
@@ -313,7 +314,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 			message << (uint32_t)MessageType::Control;
 			message << writer.write(root);
 
-			cppio::MessageProtocol proto(line);
+			cppio::MessageProtocol proto(line.get());
 			proto.sendMessage(message);
 		}
 
@@ -349,12 +350,12 @@ struct BrokerServer::Impl : public Broker::Reactor
 	void eventLoop()
 	{
 		run = true;
-		auto acceptor = manager->createServer(endpoint);
+		auto acceptor = std::unique_ptr<cppio::IoAcceptor>(manager->createServer(endpoint));
 		if(!acceptor)
 			throw std::runtime_error("Unable to bind acceptor to endpoint: " + endpoint);
 		while(run)
 		{
-			auto line = acceptor->waitConnection(std::chrono::milliseconds(100));
+			auto line = std::shared_ptr<cppio::IoLine>(acceptor->waitConnection(100));
 			if(line)
 			{
 				int timeout = 200;
