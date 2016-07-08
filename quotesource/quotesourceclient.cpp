@@ -92,16 +92,16 @@ struct QuoteSourceClient::Impl
 								}
 							}
 
-							sendHeartbeat(proto);
 						}
 						else if(rc != cppio::eTimeout)
 						{
-							run = false;
+							break;
 						}
 					}
 					catch(const LibGoldmineException& ex)
 					{
 					}
+					sendHeartbeat(proto);
 				}
 			}
 			else
