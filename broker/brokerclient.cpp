@@ -114,6 +114,12 @@ struct BrokerClient::Impl
 		ord["operation"] = serializeOperation(order->operation());
 		ord["quantity"] = order->quantity();
 		ord["price"] = order->price();
+		if(!order->signalId().strategyId.empty())
+			ord["strategy"] = order->signalId().strategyId;
+		if(!order->signalId().signalId.empty())
+			ord["signal-id"] = order->signalId().signalId;
+		if(!order->signalId().comment.empty())
+			ord["comment"] = order->signalId().comment;
 		root["order"] = ord;
 
 		Json::FastWriter writer;
@@ -260,6 +266,11 @@ struct BrokerClient::Impl
 		trade.orderId = json["order-id"].asInt();
 		trade.price = json["price"].asDouble();
 		trade.quantity = json["quantity"].asInt();
+
+		trade.signalId.strategyId = json["strategy"].asString();
+		trade.signalId.signalId = json["signal-id"].asString();
+		trade.signalId.comment= json["comment"].asString();
+
 		auto opString = json["operation"].asString();
 		if(opString == "buy")
 			trade.operation = Order::Operation::Buy;

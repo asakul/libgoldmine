@@ -13,6 +13,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <array>
 
 namespace goldmine
 {
@@ -44,8 +45,8 @@ static std::string serializeExecutionTime(time_t timestamp, int useconds)
 	using namespace boost::posix_time;
 	using namespace boost::gregorian;
 	auto timePoint = from_time_t(timestamp) + microseconds(useconds);
-	char buf[256];
-	snprintf(buf, 256, "%d-%02d-%02d %02d:%02d:%02d.%03lld",
+	std::array<char, 256> buf;
+	snprintf(buf.data(), 256, "%d-%02d-%02d %02d:%02d:%02d.%03lld",
 			(int)timePoint.date().year(),
 			(int)timePoint.date().month(),
 			(int)timePoint.date().day(),
@@ -54,7 +55,7 @@ static std::string serializeExecutionTime(time_t timestamp, int useconds)
 			(int)timePoint.time_of_day().seconds(),
 			1000ull * timePoint.time_of_day().ticks() / timePoint.time_of_day().ticks_per_second());
 
-	return std::string(buf);
+	return std::string(buf.data());
 }
 
 
@@ -222,6 +223,12 @@ struct BrokerServer::Impl : public Broker::Reactor
 			tradeJson["account"] = trade.account;
 			tradeJson["security"] = trade.security;
 			tradeJson["execution-time"] = serializeExecutionTime(trade.timestamp, trade.useconds);
+			if(!order->signalId().strategyId.empty())
+				tradeJson["strategy"] = order->signalId().strategyId;
+			if(!order->signalId().signalId.empty())
+				tradeJson["signal-id"] = order->signalId().signalId;
+			if(!order->signalId().comment.empty())
+				tradeJson["order-comment"] = order->signalId().comment;
 
 			Json::Value root;
 			root["trade"] = tradeJson;
@@ -273,6 +280,10 @@ struct BrokerServer::Impl : public Broker::Reactor
 			auto operationString = order["operation"].asString();
 			auto typeString = order["type"].asString();
 
+			auto strategyId = order["strategy"].asString();
+			auto signalId = order["signal-id"].asString();
+			auto comment = order["comment"].asString();
+
 			Order::Operation operation;
 			if(operationString == "buy")
 				operation = Order::Operation::Buy;
@@ -293,7 +304,9 @@ struct BrokerServer::Impl : public Broker::Reactor
 			else
 				BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Unknown order type specified: " + typeString));
 
-			return std::make_shared<Order>(id, account, security, price, quantity, operation, type);
+			auto brokerOrder = std::make_shared<Order>(id, account, security, price, quantity, operation, type);
+			brokerOrder->setSignalId(SignalId {strategyId, signalId, comment});
+			return brokerOrder;
 		}
 
 		bool ownsOrder(const Order::Ptr& order)

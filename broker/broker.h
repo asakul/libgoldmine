@@ -16,6 +16,13 @@
 namespace goldmine
 {
 
+struct SignalId
+{
+	std::string strategyId;
+	std::string signalId;
+	std::string comment;
+};
+
 class Order
 {
 public:
@@ -70,6 +77,9 @@ public:
 
 	std::string message() const { return m_message; }
 
+	void setSignalId(const SignalId& id) { m_signalId = id; }
+	SignalId signalId() const { return m_signalId; }
+
 private:
 	int m_id;
 	int m_clientAssignedId;
@@ -85,6 +95,8 @@ private:
 	State m_state;
 
 	std::string m_message;
+
+	SignalId m_signalId;
 };
 
 struct Trade
@@ -99,6 +111,7 @@ struct Trade
 	std::string security;
 	uint64_t timestamp;
 	uint32_t useconds;
+	SignalId signalId;
 };
 
 struct Position

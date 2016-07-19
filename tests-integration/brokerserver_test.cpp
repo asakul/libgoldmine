@@ -229,6 +229,9 @@ TEST_CASE("BrokerServer", "[broker]")
 		order["type"] = "market";
 		order["quantity"] = 2;
 		order["operation"] = "sell";
+		order["strategy"] = "FOO_STRATEGY";
+		order["signal-id"] = "FOO_SIGNAL";
+		order["comment"] = "BLAHBLAH";
 
 		Json::Value root;
 		root["order"] = order;
@@ -244,12 +247,16 @@ TEST_CASE("BrokerServer", "[broker]")
 		receiveControlMessage(response, client);
 
 		REQUIRE(broker->submittedOrders.size() == 1);
-		REQUIRE(broker->submittedOrders.front()->clientAssignedId() == 1);
-		REQUIRE(broker->submittedOrders.front()->account() == "TEST_ACCOUNT");
-		REQUIRE(broker->submittedOrders.front()->security() == "FOOBAR");
-		REQUIRE(broker->submittedOrders.front()->quantity() == 2);
-		REQUIRE(broker->submittedOrders.front()->operation() == Order::Operation::Sell);
-		REQUIRE(broker->submittedOrders.front()->type() == Order::OrderType::Market);
+		auto& submittedOrder = broker->submittedOrders.front();
+		REQUIRE(submittedOrder->clientAssignedId() == 1);
+		REQUIRE(submittedOrder->account() == "TEST_ACCOUNT");
+		REQUIRE(submittedOrder->security() == "FOOBAR");
+		REQUIRE(submittedOrder->quantity() == 2);
+		REQUIRE(submittedOrder->operation() == Order::Operation::Sell);
+		REQUIRE(submittedOrder->type() == Order::OrderType::Market);
+		REQUIRE(submittedOrder->signalId().strategyId == "FOO_STRATEGY");
+		REQUIRE(submittedOrder->signalId().signalId == "FOO_SIGNAL");
+		REQUIRE(submittedOrder->signalId().comment == "BLAHBLAH");
 		REQUIRE(response["order"]["new-state"] == "submitted");
 
 		SECTION("Order creation - duplicated id")
@@ -423,6 +430,9 @@ TEST_CASE("BrokerServer", "[broker]")
 		order["price"] = 19.73;
 		order["quantity"] = 2;
 		order["operation"] = "buy";
+		order["strategy"] = "FOO_STRATEGY";
+		order["signal-id"] = "FOO_SIGNAL";
+		order["comment"] = "BLAHBLAH";
 
 		Json::Value root;
 		root["order"] = order;
@@ -466,6 +476,9 @@ TEST_CASE("BrokerServer", "[broker]")
 			REQUIRE(trade["account"] == "TEST_ACCOUNT");
 			REQUIRE(trade["security"] == "FOOBAR");
 			REQUIRE(trade["execution-time"] == "1970-01-01 00:00:00.000");
+			REQUIRE(trade["strategy"] == "FOO_STRATEGY");
+			REQUIRE(trade["signal-id"] == "FOO_SIGNAL");
+			REQUIRE(trade["order-comment"] == "BLAHBLAH");
 
 			response.clear();
 			receiveControlMessage(response, client);
