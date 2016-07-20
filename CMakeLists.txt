@@ -106,6 +106,12 @@ target_link_libraries(quotesource-server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} 
 add_executable(quotesource-client test-misc/quotesource-client.cpp)
 target_link_libraries(quotesource-client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
 
+add_executable(broker-server test-misc/broker-server.cpp)
+target_link_libraries(broker-server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
+
+add_executable(broker-client test-misc/broker-client.cpp)
+target_link_libraries(broker-client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
+
 include(CodeCoverage)
 setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests coverage)
 
