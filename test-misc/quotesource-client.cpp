@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 		std::cerr << "Usage ./client <quotesource-endpoint>" << '\n';
 		return 1;
 	}
-	auto man = cppio::createLineManager();
+	auto man = std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 	QuoteSourceClient client(man, argv[1]);
 	auto sink = std::make_shared<Sink>();
 	client.registerSink(sink);

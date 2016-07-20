@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	signal(SIGPIPE, SIG_IGN);
-	auto man = cppio::createLineManager();
+	auto man = std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 	QuoteSource source(man, argv[1]);
 	source.start();
 

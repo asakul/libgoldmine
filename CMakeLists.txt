@@ -79,11 +79,13 @@ include_directories(
 	)
 
 set(test-sources
-		tests/quotesource_test.cpp
-		tests/quotesourceclient_test.cpp
+		tests/libgoldmine/quotesource_test.cpp
+		tests/libgoldmine/quotesourceclient_test.cpp
+		tests/libgoldmine/brokerclient_test.cpp
+		tests/libgoldmine/brokerserver_test.cpp
 	)
 
-add_executable(libgoldmine-tests tests/tests.cpp
+add_executable(libgoldmine-tests tests/libgoldmine/tests.cpp
 	${test-sources}
 	${goldmine-sources})
 
@@ -98,32 +100,12 @@ if(WIN32)
 target_link_libraries(libgoldmine-tests -lws2_32)
 endif(WIN32)
 
-set(tests-integration-sources
-	tests-integration/brokerclient_test.cpp
-	tests-integration/brokerserver_test.cpp
-	)
+add_executable(quotesource-server test-misc/quotesource-server.cpp)
+target_link_libraries(quotesource-server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
 
-add_executable(libgoldmine-integration-tests tests-integration/tests.cpp
-	${tests-integration-sources}
-	${goldmine-sources})
-
-target_compile_definitions(libgoldmine-tests PRIVATE)
-
-target_link_libraries(libgoldmine-integration-tests ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio)
-
-set_target_properties(libgoldmine-integration-tests PROPERTIES COMPILE_FLAGS "-O0 -g -fprofile-arcs -ftest-coverage")
-set_target_properties(libgoldmine-integration-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -lgcov")
-
-if(WIN32)
-target_link_libraries(libgoldmine-integration-tests -lws2_32)
-endif(WIN32)
-
-#add_executable(server test-misc/server.cpp)
-#target_link_libraries(server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
-
-#add_executable(client test-misc/client.cpp)
-#target_link_libraries(client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
+add_executable(quotesource-client test-misc/quotesource-client.cpp)
+target_link_libraries(quotesource-client ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)
 
 include(CodeCoverage)
-setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests libgoldmine-integration-tests coverage)
+setup_target_for_coverage(libgoldmine-coverage libgoldmine-tests coverage)
 
