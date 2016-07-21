@@ -134,6 +134,12 @@ BOOST_PYTHON_MODULE(pygoldmine)
 
 	def("makeIoLineManager", makeIoLineManager);
 
+	class_<SignalId>("SignalId")
+		.def(init<std::string, std::string, std::string>())
+		.add_property("strategy_id", make_getter(&SignalId::strategyId), make_setter(&SignalId::strategyId))
+		.add_property("signal_id", make_getter(&SignalId::signalId), make_setter(&SignalId::signalId))
+		.add_property("comment", make_getter(&SignalId::comment), make_setter(&SignalId::comment));
+
 	class_<decimal_fixed>("decimal_fixed")
 		.def(init<double>())
 		.def(init<int64_t, int32_t>())
@@ -232,7 +238,9 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		.def("state", Order_state)
 		.def("operation", Order_operation)
 		.def("orderType", Order_orderType)
-		.def("message", &Order::message);
+		.def("message", &Order::message)
+		.def("setSignalId", &Order::setSignalId)
+		.def("signalId", &Order::signalId);
 
 	class_<Trade>("Trade")
 		.def(init<>())
@@ -243,7 +251,8 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		.add_property("security", make_getter(&Trade::security), make_setter(&Trade::security))
 		.add_property("operation", Trade_setOperation, Trade_getOperation)
 		.add_property("timestamp", make_getter(&Trade::timestamp), make_setter(&Trade::timestamp))
-		.add_property("useconds", make_getter(&Trade::useconds), make_setter(&Trade::useconds));
+		.add_property("useconds", make_getter(&Trade::useconds), make_setter(&Trade::useconds))
+		.add_property("signal_id", make_getter(&Trade::signalId), make_setter(&Trade::signalId));
 
 	
 	struct BrokerClientReactorWrap : public BrokerClient::Reactor, wrapper<BrokerClient::Reactor>

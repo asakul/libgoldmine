@@ -82,6 +82,9 @@ std::string Order::stringRepresentation() const
 		case State::Unsubmitted:
 			ss << "unsubmitted";
 			break;
+		case State::Error:
+			ss << "error";
+			break;
 	}
 
 	ss << ")";

@@ -18,6 +18,9 @@ namespace goldmine
 
 struct SignalId
 {
+	SignalId() {}
+	SignalId(const std::string& strategyId_, const std::string& signalId_, const std::string& comment_) :
+		strategyId(strategyId_), signalId(signalId_), comment(comment_) {}
 	std::string strategyId;
 	std::string signalId;
 	std::string comment;
