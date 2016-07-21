@@ -6,8 +6,7 @@
 
 #include <thread>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/normal_distribution.hpp>
+#include <boost/thread.hpp>
 
 #include <signal.h>
 #include <cstdlib>
@@ -29,6 +28,7 @@ public:
 
 	void processOrders()
 	{
+		boost::unique_lock<boost::mutex> lock(m_mutex);
 		///=if((rand() % 3) == 0)
 		{
 			for(const auto& orderPair : m_allOrders)
@@ -113,6 +113,7 @@ public:
 
 	virtual void submitOrder(const Order::Ptr& order) override
 	{
+		boost::unique_lock<boost::mutex> lock(m_mutex);
 		std::cout << "Submitted order: " << order->stringRepresentation() << '\n';
 		auto accountIt = m_accounts.find(order->account());
 		if(accountIt == m_accounts.end())
@@ -138,6 +139,7 @@ public:
 
 	virtual void cancelOrder(const Order::Ptr& order) override
 	{
+		boost::unique_lock<boost::mutex> lock(m_mutex);
 		auto accountIt = m_accounts.find(order->account());
 		if(accountIt == m_accounts.end())
 		{
@@ -166,6 +168,7 @@ public:
 
 	virtual Order::Ptr order(int localId) override
 	{
+		boost::unique_lock<boost::mutex> lock(m_mutex);
 		auto it = m_allOrders.find(localId);
 		if(it != m_allOrders.end())
 			return it->second;
@@ -203,6 +206,7 @@ private:
 	std::map<local_order_id_t, Order::Ptr> m_allOrders;
 	std::map<local_order_id_t, Order::Ptr> m_retiredOrders;
 	std::list<std::shared_ptr<Reactor>> m_reactors;
+	boost::mutex m_mutex;
 };
 
 
@@ -221,9 +225,6 @@ int main(int argc, char** argv)
 	server.registerBroker(broker);
 	server.start();
 
-	boost::random::mt19937 gen;
-	boost::random::normal_distribution<> dist(0, 1);
-	double price = 100;
 	while(true)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
