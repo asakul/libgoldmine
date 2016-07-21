@@ -269,7 +269,7 @@ struct BrokerClient::Impl
 
 		trade.signalId.strategyId = json["strategy"].asString();
 		trade.signalId.signalId = json["signal-id"].asString();
-		trade.signalId.comment= json["comment"].asString();
+		trade.signalId.comment= json["order-comment"].asString();
 
 		auto opString = json["operation"].asString();
 		if(opString == "buy")
