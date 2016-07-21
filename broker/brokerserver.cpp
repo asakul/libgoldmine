@@ -167,9 +167,13 @@ struct BrokerServer::Impl : public Broker::Reactor
 						{
 							auto orderObject = deserializeOrder(order);
 
-							auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == orderObject->clientAssignedId();});
-							if(it != clientOrders.end())
-								BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id already exists: " + std::to_string(orderObject->clientAssignedId())));
+							{
+								boost::unique_lock<boost::mutex> lock(orderListMutex);
+								auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == orderObject->clientAssignedId();});
+								if(it != clientOrders.end())
+									BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id already exists: " + std::to_string(orderObject->clientAssignedId())));
+								clientOrders.push_back(orderObject);
+							}
 
 							Json::Value response;
 							response["result"] = "success";
@@ -181,7 +185,6 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 							proto.sendMessage(outgoing);
 
-							clientOrders.push_back(orderObject);
 							impl->submitOrder(orderObject);
 						}
 					}
@@ -194,9 +197,13 @@ struct BrokerServer::Impl : public Broker::Reactor
 						else
 						{
 							int clientAssignedId = root["cancel-order"]["id"].asInt();
-							auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == clientAssignedId;});
-							if(it == clientOrders.end())
-								BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id does not exists: " + std::to_string(clientAssignedId)));
+							std::vector<Order::Ptr>::iterator it = clientOrders.end();
+							{
+								boost::unique_lock<boost::mutex> lock(orderListMutex);
+								it = std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->clientAssignedId() == clientAssignedId;});
+								if(it == clientOrders.end())
+									BOOST_THROW_EXCEPTION(ProtocolError() << errinfo_str("Order with given id does not exists: " + std::to_string(clientAssignedId)));
+							}
 
 							Json::Value response;
 							response["result"] = "success";
@@ -245,6 +252,13 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 			if(order->executedQuantity() == order->quantity())
 			{
+				boost::unique_lock<boost::mutex> lock(orderListMutex);
+				auto it = std::find(clientOrders.begin(), clientOrders.end(), order);
+				if(it != clientOrders.end())
+				{
+					clientOrders.erase(it);
+					retiredOrders.push_back(order);
+				}
 				order->updateState(Order::State::Executed);
 			}
 			else if(order->executedQuantity() < order->quantity())
@@ -261,6 +275,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 		Order::Ptr findOrderById(int id)
 		{
+			boost::unique_lock<boost::mutex> lock(orderListMutex);
 			auto it = std::find_if(clientOrders.begin(), clientOrders.end(), [=](const Order::Ptr& order)
 					{
 						return order->localId() == id;
@@ -311,7 +326,7 @@ struct BrokerServer::Impl : public Broker::Reactor
 
 		bool ownsOrder(const Order::Ptr& order)
 		{
-			return std::find_if(clientOrders.begin(), clientOrders.end(), [&](const Order::Ptr& other) { return other->localId() == order->localId(); }) != clientOrders.end();
+			return findOrderById(order->localId()) != nullptr;
 		}
 
 		void orderStateChanged(const Order::Ptr& order)
@@ -335,6 +350,8 @@ struct BrokerServer::Impl : public Broker::Reactor
 	private:
 		std::shared_ptr<cppio::IoLine> line;
 		std::vector<Order::Ptr> clientOrders;
+		std::vector<Order::Ptr> retiredOrders;
+		boost::mutex orderListMutex;
 		Impl* impl;
 		boost::thread thread;
 		bool run;
