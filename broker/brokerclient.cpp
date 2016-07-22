@@ -130,7 +130,10 @@ struct BrokerClient::Impl
 		cppio::MessageProtocol proto(line.get());
 		proto.sendMessage(msg);
 
-		orders.push_back(order);
+		{
+			boost::unique_lock<boost::mutex> lock(ordersMutex);
+			orders.push_back(order);
+		}
 	}
 
 	void cancelOrder(const Order::Ptr& order)
@@ -228,8 +231,14 @@ struct BrokerClient::Impl
 		{
 			int id = root["order"]["id"].asInt();
 
-			auto it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
-			if(it != orders.end())
+			std::vector<Order::Ptr>::iterator it;
+			std::vector<Order::Ptr>::iterator endIt;
+			{
+				endIt = orders.end();
+				boost::unique_lock<boost::mutex> lock(ordersMutex);
+				it = std::find_if(orders.begin(), orders.end(), [&](const Order::Ptr& order) { return order->clientAssignedId() == id; } );
+			}
+			if(it != endIt)
 			{
 				(*it)->updateState(deserializeOrderState(root["order"]["new-state"].asString()));
 				auto msg = root["order"]["message"].asString();
@@ -305,6 +314,7 @@ struct BrokerClient::Impl
 	std::vector<Reactor::Ptr> reactors;
 	std::vector<boost::shared_ptr<Reactor>> boostReactors;
 	std::vector<Order::Ptr> orders;
+	boost::mutex ordersMutex;
 };
 
 BrokerClient::BrokerClient(const std::shared_ptr<cppio::IoLineManager>& manager, const std::string& address) :
