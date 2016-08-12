@@ -429,6 +429,8 @@ TEST_CASE("BrokerServer", "[broker]")
 		order["type"] = "limit";
 		order["price"] = 19.73;
 		order["quantity"] = 2;
+		order["volume"] = 123.45;
+		order["volume-currency"] = "RUB";
 		order["operation"] = "buy";
 		order["strategy"] = "FOO_STRATEGY";
 		order["signal-id"] = "FOO_SIGNAL";
@@ -456,6 +458,8 @@ TEST_CASE("BrokerServer", "[broker]")
 				trade.orderId = broker->submittedOrders.front()->localId();
 				trade.price = 19.73;
 				trade.quantity = 2;
+				trade.volume = 123.45;
+				trade.volumeCurrency = "RUB";
 				trade.operation = Order::Operation::Buy;
 				trade.account = "TEST_ACCOUNT";
 				trade.security = "FOOBAR";
@@ -472,6 +476,8 @@ TEST_CASE("BrokerServer", "[broker]")
 			REQUIRE(trade["order-id"] == 1);
 			REQUIRE(trade["price"].asDouble() == Approx(19.73));
 			REQUIRE(trade["quantity"] == 2);
+			REQUIRE(trade["volume"].asDouble() == Approx(123.45));
+			REQUIRE(trade["volume-currency"] == "RUB");
 			REQUIRE(trade["operation"] == "buy");
 			REQUIRE(trade["account"] == "TEST_ACCOUNT");
 			REQUIRE(trade["security"] == "FOOBAR");
@@ -493,6 +499,8 @@ TEST_CASE("BrokerServer", "[broker]")
 				trade.orderId = broker->submittedOrders.front()->localId();
 				trade.price = 19.73;
 				trade.quantity = 1;
+				trade.volume = 123.45;
+				trade.volumeCurrency = "RUB";
 				trade.operation = Order::Operation::Buy;
 				trade.account = "TEST_ACCOUNT";
 				trade.security = "FOOBAR";
@@ -519,6 +527,8 @@ TEST_CASE("BrokerServer", "[broker]")
 				trade.orderId = broker->submittedOrders.front()->localId();
 				trade.price = 19.73;
 				trade.quantity = 10;
+				trade.volume = 123.45;
+				trade.volumeCurrency = "RUB";
 				trade.operation = Order::Operation::Buy;
 				trade.account = "TEST_ACCOUNT";
 				trade.security = "FOOBAR";

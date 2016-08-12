@@ -227,6 +227,8 @@ struct BrokerServer::Impl : public Broker::Reactor
 			tradeJson["price"] = trade.price;
 			tradeJson["quantity"] = trade.quantity;
 			tradeJson["operation"] = trade.operation == Order::Operation::Buy ? "buy" : "sell";
+			tradeJson["volume"] = trade.volume;
+			tradeJson["volume-currency"] = trade.volumeCurrency;
 			tradeJson["account"] = trade.account;
 			tradeJson["security"] = trade.security;
 			tradeJson["execution-time"] = serializeExecutionTime(trade.timestamp, trade.useconds);

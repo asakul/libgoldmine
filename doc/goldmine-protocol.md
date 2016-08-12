@@ -138,107 +138,125 @@ Broker
 
 Для создания нового ордера:
 
-    {'order' : {
-      'id' : 1,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'limit',
-      'price' : 19.73,
-      'amount' : 2,
-      'operation': 'buy'
+    {"order" : {
+      "id" : 1,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "limit",
+      "price" : 19.73,
+      "amount" : 2,
+      "operation": "buy",
+	  "strategy" : "strategy #1",
+	  "signal-id" : "signal #2",
+	  "comment" : "Yo dawg"
      }
     }
 
-    { 'order' : {
-      'id' : 2,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'market',
-      'amount' : 2,
-      'operation': 'buy'
+    { "order" : {
+      "id" : 2,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "market",
+      "amount" : 2,
+      "operation": "buy"
      }
     }
 
-    { 'order' : {
-      'id' : 3,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'stop',
-      'price' : 19.00,
-      'stop-price' : 19.30,
-      'amount' : 2,
-      'operation': 'buy'
+    { "order" : {
+      "id" : 3,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "stop",
+      "price" : 19.00,
+      "stop-price" : 19.30,
+      "amount" : 2,
+      "operation": "buy"
      }
     }
 
-    { 'order' : {
-      'id' : 4,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'take-profit',
-      'price' : 19.00,
-      'spread' : 0.20,
-      'amount' : 2,
-      'operation': 'sell'
+    { "order" : {
+      "id" : 4,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "take-profit",
+      "price" : 19.00,
+      "spread" : 0.20,
+      "amount" : 2,
+      "operation": "sell"
      }
     }
 
-    { 'cancel-order' : { 'id' : 4, 'account' : 'FOO' } }
+    { "cancel-order" : { "id" : 4, "account" : "FOO" } }
 
 При изменении состояния ордера брокер будет слать сообщения клиенту
 
-    { 'order' : { 'id' : 1, 'new-state' : 'submitted' } }
-    { 'order' : { 'id' : 2, 'new-state' : 'rejected', 'reason' : 'Not enough money' } }
+    { "order" : { "id" : 1, "new-state" : "submitted" } }
+    { "order" : { "id" : 2, "new-state" : "rejected", "reason" : "Not enough money" } }
 
 
 Для получения текущих ордеров:
-    { 'get' : 'orders' }
+    { "get" : "orders" }
 
 Ордера будут выглядеть так же, как и при их создании:
-    [ {'order' : {
-      'id' : 1,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'limit',
-      'price' : 19.73,
-      'amount' : 2,
-      'operation': 'buy'
+    [ {"order" : {
+      "id" : 1,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "limit",
+      "price" : 19.73,
+      "amount" : 2,
+      "operation": "buy"
      }
     },
-    { 'order' : {
-      'id' : 3,
-      'account' : 'NL0080000043#467',
-      'security' : 'SPBFUT#RIH6',
-      'type' : 'stop',
-      'price' : 19.00,
-      'stop-price' : 19.30,
-      'amount' : 2,
-      'operation': 'buy'
+    { "order" : {
+      "id" : 3,
+      "account" : "NL0080000043#467",
+      "security" : "SPBFUT#RIH6",
+      "type" : "stop",
+      "price" : 19.00,
+      "stop-price" : 19.30,
+      "amount" : 2,
+      "operation": "buy"
      }
     } ]
 
 
 Для получения одного ордера:
-    { 'get' : 'order',
-      'id' : 1
+    { "get" : "order",
+      "id" : 1
     }
 
 
 Для получения открытых позиций:
-    { 'get' : 'positions'}
+    { "get" : "positions"}
 
 Ответ:
-    [ {'position' : { 'account' : 'NL0080000043#467',
-                      'security' : 'SPBFUT#RIH6',
-                      'size' : -3,
-                      'entry-price' : 68420
+    [ {"position" : { "account" : "NL0080000043#467",
+                      "security" : "SPBFUT#RIH6",
+                      "size" : -3,
+                      "entry-price" : 68420
     }},
-      {'position' : { 'account' : 'NL0080000043#467',
-                      'security' : 'SUR',
-                      'size' : 100000.0
+      {"position" : { "account" : "NL0080000043#467",
+                      "security" : "SUR",
+                      "size" : 100000.0
     }}]
 
-При исполнении ордера Broker посылает клиенту соотв	етствующее сообщение:
+При исполнении ордера Broker посылает клиенту соответствующее сообщение:
+	{
+		"trade" : {
+			"account" : "NL0080000043#467",
+			"security" : "SPBFUT#RIU6",
+			"price" : 92500,
+			"quantity" : 10,
+			"volume" : 654000.12,
+			"volume-currency" : "SUR",
+			"operation" : "buy",
+			"execution-time" : "2006-08-12 12:00:05.345",
+			"strategy" : "test_strategy",
+			"signal-id" : "my_signal",
+			"order-comment" : "Yo dawg"
+		}
+	}
 
 
 Service-сообщения
