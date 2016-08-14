@@ -4,7 +4,7 @@
 
 #include "cppio/iolinemanager.h"
 
-#include <thread>
+#include <boost/thread.hpp>
 #include <iostream>
 
 #include <cstdlib>
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
 
 	while(true)
 	{
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		boost::this_thread::sleep_for(boost::chrono::seconds(1));
 	}
 }
 

@@ -4,7 +4,7 @@
 
 #include "cppio/iolinemanager.h"
 
-#include <thread>
+#include <boost/thread.hpp>
 
 #include <signal.h>
 #include <cstdlib>
@@ -37,7 +37,9 @@ int main(int argc, char** argv)
 		std::cerr << "Usage ./broker-client <brokerserver-endpoint> <account>" << '\n';
 		return 1;
 	}
+#ifndef WIN32
 	signal(SIGPIPE, SIG_IGN);
+#endif
 	auto man = std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 	BrokerClient client(man, argv[1]);
 	std::string account(argv[2]);
@@ -49,7 +51,7 @@ int main(int argc, char** argv)
 	int id = 1;
 	while(true)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(30));
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(30));
 		Order::Ptr order;
 		std::string strategy = "foo_strategy";
 		std::string signal = std::string("signal ") + std::to_string(rand());

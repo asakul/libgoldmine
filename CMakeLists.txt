@@ -17,11 +17,11 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-set(Python_ADDITIONAL_VERSIONS 2.7)
+set(Python_ADDITIONAL_VERSIONS 3.5)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python-py35)
 endif(WIN32)
 
 if(WIN32)
@@ -99,6 +99,7 @@ set_target_properties(libgoldmine-tests PROPERTIES LINK_FLAGS "-fprofile-arcs -l
 if(WIN32)
 target_link_libraries(libgoldmine-tests -lws2_32)
 endif(WIN32)
+
 
 add_executable(quotesource-server test-misc/quotesource-server.cpp)
 target_link_libraries(quotesource-server ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} -L../libcppio -lcppio goldmine)

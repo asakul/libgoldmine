@@ -217,7 +217,9 @@ int main(int argc, char** argv)
 		std::cerr << "Usage ./broker-server <brokerserver-endpoint>" << '\n';
 		return 1;
 	}
+#ifndef WIN32
 	signal(SIGPIPE, SIG_IGN);
+#endif
 	auto man = std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 	BrokerServer server(man, argv[1]);
 
@@ -227,7 +229,7 @@ int main(int argc, char** argv)
 
 	while(true)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
 		broker->processOrders();
 	}
 }
