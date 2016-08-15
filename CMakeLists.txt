@@ -17,11 +17,11 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-set(Python_ADDITIONAL_VERSIONS 3.5)
+set(Python_ADDITIONAL_VERSIONS 2.7)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python-py35)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
 endif(WIN32)
 
 if(WIN32)
