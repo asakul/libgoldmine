@@ -124,11 +124,8 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		PyEval_InitThreads();
 	}
 
-	register_ptr_to_python<std::shared_ptr<QuoteSource>>();
 	register_ptr_to_python<std::shared_ptr<QuoteSource::Reactor>>();
-	register_ptr_to_python<std::shared_ptr<QuoteSourceClient>>();
 	register_ptr_to_python<boost::shared_ptr<QuoteSourceClient::Sink>>();
-	register_ptr_to_python<std::shared_ptr<cppio::IoLineManager>>();
 
 	class_<cppio::IoLineManager, std::shared_ptr<cppio::IoLineManager>, boost::noncopyable>("IoLineManager", no_init);
 
