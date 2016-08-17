@@ -17,11 +17,11 @@ add_definitions(-DBOOST_THREAD_USE_LIB)
 if(WIN32)
 find_package(Boost COMPONENTS system thread_win32-mt date_time chrono REQUIRED)
 else(WIN32)
-set(Python_ADDITIONAL_VERSIONS 2.7)
+set(Python_ADDITIONAL_VERSIONS 3.5)
 FIND_PACKAGE(PythonInterp)
 FIND_PACKAGE(PythonLibs)
 
-find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python)
+find_package(Boost COMPONENTS system thread date_time chrono REQUIRED python3)
 endif(WIN32)
 
 if(WIN32)
@@ -55,7 +55,7 @@ if(WIN32)
 target_link_libraries(goldmine -lws2_32)
 endif(WIN32)
 
-if(Boost_PYTHON_FOUND)
+if(Boost_PYTHON3_FOUND)
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 
@@ -67,9 +67,9 @@ if(WIN32)
 endif(WIN32)
 set_target_properties(pygoldmine PROPERTIES PREFIX "")
 
-else(Boost_PYTHON_FOUND)
+else(Boost_PYTHON3_FOUND)
 message("Python bindings are NOT enabled")
-endif(Boost_PYTHON_FOUND)
+endif(Boost_PYTHON3_FOUND)
 
 include_directories(
 	${CMAKE_CURRENT_SOURCE_DIR}/../libcppio/include
