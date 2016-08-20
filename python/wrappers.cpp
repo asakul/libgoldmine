@@ -34,6 +34,39 @@ static std::string serializeOrderState(Order::State state)
 	return "unknown";
 }
 
+static Order::State deserializeState(const std::string& state)
+{
+	if(state == "cancelled")
+	{
+		return Order::State::Cancelled;
+	}
+	if(state == "executed")
+	{
+		return Order::State::Executed;
+	}
+	if(state == "partially-executed")
+	{
+		return Order::State::PartiallyExecuted;
+	}
+	if(state == "rejected")
+	{
+		return Order::State::Rejected;
+	}
+	if(state == "submitted")
+	{
+		return Order::State::Submitted;
+	}
+	if(state == "unsubmitted")
+	{
+		return Order::State::Unsubmitted;
+	}
+	if(state == "error")
+	{
+		return Order::State::Error;
+	}
+	BOOST_THROW_EXCEPTION(ParameterError() << errinfo_str("Invalid order state: " + state));
+}
+
 std::shared_ptr<cppio::IoLineManager> makeIoLineManager()
 {
 	return std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
@@ -65,6 +98,11 @@ static Order::Ptr createOrder(int clientAssignedId, const std::string& account,
 static std::string Order_state(const std::shared_ptr<Order>& self)
 {
 	return serializeOrderState(self->state());
+}
+
+static void Order_updateState(const std::shared_ptr<Order>& self, const std::string& newState)
+{
+	self->updateState(deserializeState(newState));
 }
 
 static std::string Order_operation(const std::shared_ptr<Order>& self)
@@ -124,11 +162,8 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		PyEval_InitThreads();
 	}
 
-	register_ptr_to_python<std::shared_ptr<QuoteSource>>();
 	register_ptr_to_python<std::shared_ptr<QuoteSource::Reactor>>();
-	register_ptr_to_python<std::shared_ptr<QuoteSourceClient>>();
 	register_ptr_to_python<boost::shared_ptr<QuoteSourceClient::Sink>>();
-	register_ptr_to_python<std::shared_ptr<cppio::IoLineManager>>();
 
 	class_<cppio::IoLineManager, std::shared_ptr<cppio::IoLineManager>, boost::noncopyable>("IoLineManager", no_init);
 
@@ -236,6 +271,7 @@ BOOST_PYTHON_MODULE(pygoldmine)
 		.def("setExecutedQuantity", &Order::setExecutedQuantity)
 		.def("executedQuantity", &Order::executedQuantity)
 		.def("state", Order_state)
+		.def("updateState", Order_updateState)
 		.def("operation", Order_operation)
 		.def("orderType", Order_orderType)
 		.def("message", &Order::message)
