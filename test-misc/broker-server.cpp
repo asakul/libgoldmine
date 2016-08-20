@@ -54,10 +54,12 @@ public:
 					trade.account = order->account();
 					trade.operation = order->operation();
 					trade.orderId = order->localId();
-					trade.price = (double)(rand() % 10000) / 100;
+					trade.price = (double)(rand() % 100000) / 100;
 					trade.quantity = order->quantity();
 					trade.security = order->security();
 					trade.signalId = order->signalId();
+					trade.volume = order->quantity() * trade.price;
+					trade.volumeCurrency = "TUGR";
 					trade.timestamp = time(0);
 					trade.useconds = 0;
 					m_retiredOrders.insert(std::make_pair(order->localId(), order));
@@ -84,6 +86,8 @@ public:
 					trade.quantity = order->quantity();
 					trade.security = order->security();
 					trade.signalId = order->signalId();
+					trade.volume = order->quantity() * trade.price;
+					trade.volumeCurrency = "TUGR";
 					trade.timestamp = time(0);
 					trade.useconds = 0;
 					m_retiredOrders.insert(std::make_pair(order->localId(), order));
@@ -214,7 +218,7 @@ int main(int argc, char** argv)
 {
 	if(argc < 2)
 	{
-		std::cerr << "Usage ./broker-server <brokerserver-endpoint>" << '\n';
+		std::cerr << "Usage ./broker-server <brokerserver-endpoint> [<stats-endpoint>]" << '\n';
 		return 1;
 	}
 #ifndef WIN32
@@ -222,6 +226,10 @@ int main(int argc, char** argv)
 #endif
 	auto man = std::shared_ptr<cppio::IoLineManager>(cppio::createLineManager());
 	BrokerServer server(man, argv[1]);
+	if(argc >= 3)
+	{
+		server.setTradeSink(argv[2]);
+	}
 
 	auto broker = std::make_shared<TestBroker>();
 	server.registerBroker(broker);

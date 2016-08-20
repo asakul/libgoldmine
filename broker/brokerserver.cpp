@@ -14,6 +14,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <array>
+#include <queue>
 
 namespace goldmine
 {
@@ -46,14 +47,14 @@ static std::string serializeExecutionTime(time_t timestamp, int useconds)
 	using namespace boost::gregorian;
 	auto timePoint = from_time_t(timestamp) + microseconds(useconds);
 	std::array<char, 256> buf;
-	snprintf(buf.data(), 256, "%d-%02d-%02d %02d:%02d:%02d.%03lld",
+	snprintf(buf.data(), 256, "%d-%02d-%02d %02d:%02d:%02d.%03d",
 			(int)timePoint.date().year(),
 			(int)timePoint.date().month(),
 			(int)timePoint.date().day(),
 			(int)timePoint.time_of_day().hours(),
 			(int)timePoint.time_of_day().minutes(),
 			(int)timePoint.time_of_day().seconds(),
-			1000ull * timePoint.time_of_day().ticks() / timePoint.time_of_day().ticks_per_second());
+			(int)(1000ull * (double)timePoint.time_of_day().fractional_seconds() / timePoint.time_of_day().ticks_per_second()));
 
 	return std::string(buf.data());
 }
@@ -220,27 +221,11 @@ struct BrokerServer::Impl : public Broker::Reactor
 			}
 		}
 
+
 		void tradeNotification(const Order::Ptr& order, const Trade& trade)
 		{
-			Json::Value tradeJson;
-			tradeJson["order-id"] = order->clientAssignedId();
-			tradeJson["price"] = trade.price;
-			tradeJson["quantity"] = trade.quantity;
-			tradeJson["operation"] = trade.operation == Order::Operation::Buy ? "buy" : "sell";
-			tradeJson["volume"] = trade.volume;
-			tradeJson["volume-currency"] = trade.volumeCurrency;
-			tradeJson["account"] = trade.account;
-			tradeJson["security"] = trade.security;
-			tradeJson["execution-time"] = serializeExecutionTime(trade.timestamp, trade.useconds);
-			if(!order->signalId().strategyId.empty())
-				tradeJson["strategy"] = order->signalId().strategyId;
-			if(!order->signalId().signalId.empty())
-				tradeJson["signal-id"] = order->signalId().signalId;
-			if(!order->signalId().comment.empty())
-				tradeJson["order-comment"] = order->signalId().comment;
-
 			Json::Value root;
-			root["trade"] = tradeJson;
+			serializeTrade(trade, root);
 
 			Json::FastWriter writer;
 			cppio::Message message;
@@ -375,9 +360,15 @@ struct BrokerServer::Impl : public Broker::Reactor
 	std::shared_ptr<cppio::IoLineManager> manager;
 	std::string endpoint;
 	boost::thread mainThread;
+	boost::thread tradeSinkThread;
 	bool run;
 	std::vector<Client::Ptr> clients;
 	boost::uuids::random_generator uuidGenerator;
+	std::string tradesSinkEndpoint;
+
+	boost::mutex tradeQueueMutex;
+	boost::condition_variable tradeQueueCv;
+	std::queue<Trade> tradeQueue;
 
 	void eventLoop()
 	{
@@ -385,6 +376,9 @@ struct BrokerServer::Impl : public Broker::Reactor
 		auto acceptor = std::unique_ptr<cppio::IoAcceptor>(manager->createServer(endpoint));
 		if(!acceptor)
 			throw std::runtime_error("Unable to bind acceptor to endpoint: " + endpoint);
+
+		tradeSinkThread = boost::thread(std::bind(&Impl::tradeSink, this));
+
 		while(run)
 		{
 			auto line = std::shared_ptr<cppio::IoLine>(acceptor->waitConnection(100));
@@ -397,6 +391,90 @@ struct BrokerServer::Impl : public Broker::Reactor
 				clients.push_back(client);
 			}
 		}
+	}
+
+	void tradeSink()
+	{
+		while(run)
+		{
+			std::unique_ptr<cppio::IoLine> tradesSink(manager->createClient(tradesSinkEndpoint));
+			if(tradesSink)
+			{
+				cppio::MessageProtocol proto(tradesSink.get());
+				while(run)
+				{
+					Trade trade;
+					{
+						boost::unique_lock<boost::mutex> lock(tradeQueueMutex);
+						while(trade.orderId == 0)
+						{
+							if(!run)
+								return;
+
+							if(tradeQueue.size() > 0)
+							{
+								trade = tradeQueue.front();
+								tradeQueue.pop();
+							}
+							else
+							{
+								tradeQueueCv.wait_for(lock, boost::chrono::milliseconds(1000));
+								continue;
+							}
+						}
+					}
+					if(trade.orderId != 0)
+					{
+						Json::Value root;
+						serializeTrade(trade, root);
+
+						Json::FastWriter writer;
+						cppio::Message message;
+						message << writer.write(root);
+
+						size_t rc = proto.sendMessage(message);
+						if(rc < 0)
+							break;
+						printf("Sinking trade\n");
+					}
+				}
+			}
+		}
+	}
+
+	void setTradeSink(const std::string& endpoint)
+	{
+		tradesSinkEndpoint = endpoint;
+	}
+
+	void sendTradeToSink(const Trade& trade)
+	{
+		boost::unique_lock<boost::mutex> lock(tradeQueueMutex);
+		tradeQueue.push(trade);
+		tradeQueueCv.notify_one();
+	}
+
+	static void serializeTrade(const Trade& trade, Json::Value& root)
+	{
+		Json::Value tradeJson;
+		tradeJson["order-id"] = trade.orderId;
+		tradeJson["price"] = trade.price;
+		tradeJson["quantity"] = trade.quantity;
+		tradeJson["operation"] = trade.operation == Order::Operation::Buy ? "buy" : "sell";
+		tradeJson["volume"] = trade.volume;
+		tradeJson["volume-currency"] = trade.volumeCurrency;
+		tradeJson["account"] = trade.account;
+		tradeJson["security"] = trade.security;
+		tradeJson["execution-time"] = serializeExecutionTime(trade.timestamp, trade.useconds);
+		if(!trade.signalId.strategyId.empty())
+			tradeJson["strategy"] = trade.signalId.strategyId;
+		if(!trade.signalId.signalId.empty())
+			tradeJson["signal-id"] = trade.signalId.signalId;
+		if(!trade.signalId.comment.empty())
+			tradeJson["order-comment"] = trade.signalId.comment;
+
+		root.clear();
+		root["trade"] = tradeJson;
 	}
 
 	void submitOrder(const Order::Ptr& order)
@@ -433,10 +511,15 @@ struct BrokerServer::Impl : public Broker::Reactor
 			auto order = client->findOrderById(trade.orderId);
 			if(order)
 			{
-				client->tradeNotification(order, trade);
+				Trade t(trade);
+				t.orderId = order->clientAssignedId();
+				t.signalId = order->signalId();
+				client->tradeNotification(order, t);
 				break;
 			}
 		}
+
+		sendTradeToSink(trade);
 	}
 
 	std::string generateNewIdentity()
@@ -488,6 +571,11 @@ void BrokerServer::stop()
 
 	if(m_impl->mainThread.joinable())
 		m_impl->mainThread.join();
+}
+
+void BrokerServer::setTradeSink(const std::string& endpoint)
+{
+	m_impl->setTradeSink(endpoint);
 }
 
 }

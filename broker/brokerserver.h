@@ -25,6 +25,8 @@ public:
 	void start();
 	void stop();
 
+	void setTradeSink(const std::string& endpoint);
+
 private:
 	struct Impl;
 	std::shared_ptr<Impl> m_impl;

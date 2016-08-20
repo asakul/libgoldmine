@@ -9,7 +9,7 @@
 namespace goldmine
 {
 
-static std::atomic_int gs_id;
+static std::atomic_int gs_id(1);
 
 static std::string opString(Order::Operation op)
 {

@@ -134,11 +134,13 @@ static void doIdentityRequest(MessageProtocol& client)
 TEST_CASE("BrokerServer", "[broker]")
 {
 	auto manager = std::shared_ptr<IoLineManager>(createLineManager());
+	std::unique_ptr<IoAcceptor> statsServer(manager->createServer("inproc://stats"));
 
 	auto server = std::make_shared<BrokerServer>(manager, "inproc://brokerserver");
 	auto broker = std::make_shared<TestBroker>("TEST_ACCOUNT");
 	server->registerBroker(broker);
 
+	server->setTradeSink("inproc://stats");
 	server->start();
 
 	auto clientLine = std::unique_ptr<IoLine>(manager->createClient("inproc://brokerserver"));
@@ -547,6 +549,12 @@ TEST_CASE("BrokerServer", "[broker]")
 
 			REQUIRE(response["order"]["new-state"] == "error");
 		}
+	}
+
+	SECTION("Trades are forwarded to stats server")
+	{
+		std::unique_ptr<IoLine> statsLine(statsServer->waitConnection(100));
+		REQUIRE(statsLine);
 	}
 
 	server->stop();
