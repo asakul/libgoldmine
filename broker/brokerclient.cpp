@@ -128,7 +128,13 @@ struct BrokerClient::Impl
 		msg << writer.write(root);
 
 		cppio::MessageProtocol proto(line.get());
-		proto.sendMessage(msg);
+		size_t retcode;
+		do
+		{
+			retcode = proto.sendMessage(msg);
+			if(retcode != 1)
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+		} while(retcode != 1); // Wait until event thread reconnects
 
 		{
 			boost::unique_lock<boost::mutex> lock(ordersMutex);

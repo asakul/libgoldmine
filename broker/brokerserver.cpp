@@ -414,7 +414,6 @@ struct BrokerServer::Impl : public Broker::Reactor
 							if(tradeQueue.size() > 0)
 							{
 								trade = tradeQueue.front();
-								tradeQueue.pop();
 							}
 							else
 							{
@@ -433,8 +432,9 @@ struct BrokerServer::Impl : public Broker::Reactor
 						message << writer.write(root);
 
 						size_t rc = proto.sendMessage(message);
-						if(rc < 0)
+						if(rc != 1)
 							break;
+						tradeQueue.pop();
 					}
 				}
 			}
