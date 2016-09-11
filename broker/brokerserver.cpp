@@ -435,9 +435,12 @@ struct BrokerServer::Impl : public Broker::Reactor
 						size_t rc = proto.sendMessage(message);
 						if(rc < 0)
 							break;
-						printf("Sinking trade\n");
 					}
 				}
+			}
+			else
+			{
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(10000));
 			}
 		}
 	}
