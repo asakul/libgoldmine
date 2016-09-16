@@ -403,6 +403,20 @@ struct BrokerServer::Impl : public Broker::Reactor
 				cppio::MessageProtocol proto(tradesSink.get());
 				while(run)
 				{
+					{
+						cppio::Message message;
+						std::string rawmsg(R"({ "command" : "heartbeat" })");
+						message.addFrame(cppio::Frame(rawmsg.data(), rawmsg.size()));
+						size_t rc = proto.sendMessage(message);
+						if(rc != 1)
+							break;
+						message.clear();
+						rc = proto.readMessage(message);
+						if(rc != 1)
+							break;
+
+						// No need to check the response, if we got anything we are happy
+					}
 					Trade trade;
 					{
 						boost::unique_lock<boost::mutex> lock(tradeQueueMutex);
